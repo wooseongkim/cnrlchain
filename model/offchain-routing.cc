@@ -25,6 +25,113 @@ NS_OBJECT_ENSURE_REGISTERED (RoutingProtocol);
 const uint32_t RoutingProtocol::OFFCHAIN_PORT = 1200;
 
 
+
+class DeferredRouteOutputTag : public Tag
+{
+
+public:
+  DeferredRouteOutputTag (int32_t o = -1) : Tag (), m_oif (o) {}
+
+  static TypeId GetTypeId ()
+  {
+    static TypeId tid = TypeId ("ns3::offchain::DeferredRouteOutputTag").SetParent<Tag> ()
+      .SetParent<Tag> ()
+      .AddConstructor<DeferredRouteOutputTag> ()
+    ;
+    return tid;
+  }
+
+  TypeId  GetInstanceTypeId () const 
+  {
+    return GetTypeId ();
+  }
+
+  int32_t GetInterface() const
+  {
+    return m_oif;
+  }
+
+  void SetInterface(int32_t oif)
+  {
+    m_oif = oif;
+  }
+
+  uint32_t GetSerializedSize () const
+  {
+    return sizeof(int32_t);
+  }
+
+  void  Serialize (TagBuffer i) const
+  {
+    i.WriteU32 (m_oif);
+  }
+
+  void  Deserialize (TagBuffer i)
+  {
+    m_oif = i.ReadU32 ();
+  }
+
+  void  Print (std::ostream &os) const
+  {
+    os << "DeferredRouteOutputTag: output interface = " << m_oif;
+  }
+
+private:
+  /// Positive if output device is fixed in RouteOutput
+  int32_t m_oif;
+};
+
+NS_OBJECT_ENSURE_REGISTERED (DeferredRouteOutputTag);
+
+
+//-----------------------------------------------------------------------------
+RoutingProtocol::RoutingProtocol () :
+  RreqRetries (2),
+  RreqRateLimit (10),
+  RerrRateLimit (10),
+  ActiveRouteTimeout (Seconds (3)),
+  NetDiameter (35),
+  NodeTraversalTime (MilliSeconds (40)),
+  NetTraversalTime (Time ((2 * NetDiameter) * NodeTraversalTime)),
+  PathDiscoveryTime ( Time (2 * NetTraversalTime)),
+  MyRouteTimeout (Time (2 * std::max (PathDiscoveryTime, ActiveRouteTimeout))),
+  HelloInterval (Seconds (60)),
+  AllowedHelloLoss (2),
+  DeletePeriod (Time (5 * std::max (ActiveRouteTimeout, HelloInterval))),
+  NextHopWait (NodeTraversalTime + MilliSeconds (10)),
+  TimeoutBuffer (2),
+  BlackListTimeout (Time (RreqRetries * NetTraversalTime)),
+  MaxQueueLen (64),
+  MaxQueueTime (Seconds (30)),
+  DestinationOnly (false),
+  GratuitousReply (true),
+  EnableHello (true),
+  m_routingTable (DeletePeriod),
+  m_queue (MaxQueueLen, MaxQueueTime),
+  m_requestId (0),
+  m_seqNo (0),
+  m_rreqIdCache (PathDiscoveryTime),
+  m_dpd (PathDiscoveryTime),
+  m_nb (HelloInterval),
+  m_rreqCount (0),
+  m_rerrCount (0),
+  m_htimer (Timer::CANCEL_ON_DESTROY),
+  m_rreqRateLimitTimer (Timer::CANCEL_ON_DESTROY),
+  m_rerrRateLimitTimer (Timer::CANCEL_ON_DESTROY)
+{
+  if (EnableHello)
+    {
+      m_nb.SetCallback (MakeCallback (&RoutingProtocol::ClosePaymentChannelToNextHop, this));
+    }
+}
+
+void
+RoutingProtocol::ClosePaymentChannelToNextHop (Ipv4Address nextHop)
+{
+  NS_LOG_FUNCTION (this << nextHop);
+  // record balance proof to the main chain
+}
+
 void
 RoutingProtocol::SendHello ()
 {
@@ -60,7 +167,7 @@ RoutingProtocol::SendHello ()
 }
 
 void
-RoutingProtocol::ProcessHello (RrepHeader const & rrepHeader, Ipv4Address receiver )
+RoutingProtocol::RecvHello (HelloHeader const & HelloHeader, Ipv4Address receiver )
 {
   NS_LOG_FUNCTION (this << "from " << rrepHeader.GetDst ());
   /*
@@ -338,3 +445,47 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
 	}
     }
 }
+
+void
+RoutingProtocol::RecvAodv (Ptr<Socket> socket)
+{
+  NS_LOG_FUNCTION (this << socket);
+  Address sourceAddress;
+  Ptr<Packet> packet = socket->RecvFrom (sourceAddress);
+  InetSocketAddress inetSourceAddr = InetSocketAddress::ConvertFrom (sourceAddress);
+  Ipv4Address sender = inetSourceAddr.GetIpv4 ();
+  Ipv4Address receiver = m_socketAddresses[socket].GetLocal ();
+  NS_LOG_DEBUG ("AODV node " << this << " received a AODV packet from " << sender << " to " << receiver);
+
+  UpdateRouteToNeighbor (sender, receiver);
+  TypeHeader tHeader (AODVTYPE_RREQ);
+  packet->RemoveHeader (tHeader);
+  if (!tHeader.IsValid ())
+    {
+      NS_LOG_DEBUG ("AODV message " << packet->GetUid () << " with unknown type received: " << tHeader.Get () << ". Drop");
+      return; // drop
+    }
+  switch (tHeader.Get ())
+    {
+    case OFFCHAIN_TYPE_RREQ:
+      {
+        RecvRequest (packet, receiver, sender);
+        break;
+      }
+    case OFFCHAIN_TYPE_RREP:
+      {
+        RecvReply (packet, receiver, sender);
+        break;
+      }
+    case OFFCHAIN_TYPE_HELLO:
+      {
+        RecvHello (packet, receiver, sender);
+        break;
+      }
+
+    }
+}
+
+
+} /*offchain*/
+} /*ns3*/

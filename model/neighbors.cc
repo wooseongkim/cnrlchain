@@ -120,7 +120,8 @@ Neighbors::Update (Ipv4Address addr, Time expire)
 }
 
 
-void SetChDeposit(Ipv4Address addr)
+void 
+Neighbors::SetChDeposit(Ipv4Address addr)
 {
     
 }
