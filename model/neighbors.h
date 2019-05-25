@@ -51,6 +51,8 @@ public:
   void ScheduleTimer ();
   /// Remove all entries
   void Clear () { m_nb.clear (); }
+  //get neighbor address by index
+  Ipv4Address GetNgbIPaddrByIndex(int i){return m_nb[i].m_neighborAddress; }
   // get amount of total channel deposit
   uint32_t GetChMyDeposit(Ipv4Address addr);
   // get current available channel deposit
@@ -63,7 +65,8 @@ public:
   void DecChDeposit(Ipv4Address addr, uint32_t pay);
   //increase channel deposit
   void IncChDeposit(Ipv4Address addr, uint32_t pay);
-
+  //default deposit
+  uint32_t GetDefaultDeposit(){ return m_initDeposit; }
   /// Get callback to ProcessTxError
   Callback<void, WifiMacHeader const &> GetTxErrorCallback () const { return m_txErrorCallback; }
  

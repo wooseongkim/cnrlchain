@@ -46,6 +46,7 @@ PaymentNetwork::PaymentNetwork ()
     m_pending_interest_unknown_content_provider = new vector<PendingInterestEntryUnknownContentProvider>;
     m_initialRequestedContent = Ipv4Address("0.0.0.0");
     m_firstSuccess = false;
+    m_ngbChTable = new Neighbors (1000, 100); //default deposit 100
 }
 
 
@@ -111,6 +112,7 @@ PaymentNetwork::StartApplication (void)
 {
     NS_LOG_FUNCTION (this);
     m_routingProtocol = offchain::RoutingProtocol ();
+    m_routingProtocol.SetNeighborTable(m_ngbChTable); //set neighbor table
 
     Ipv4Address broadcastAddr = Ipv4Address("255.255.255.255");
     Ipv4Address thisNodeAddress = GetNodeAddress();
@@ -151,11 +153,19 @@ PaymentNetwork::StartApplication (void)
 
     m_socket->SetRecvCallback (MakeCallback (&PaymentNetwork::HandleRead, this));
     
-    ScheduleTransmitHelloPackets(1000);
+    ScheduleTransmitPayChannelPackets(1000);
 }
 
-void
-PaymentNetwork::LookupRoute()
+bool
+PaymentNetwork::LookupRoute(Ipv4Address dst)
+{
+  RoutingTableEntry toNeighbor;
+  return m_routingTable.LookupRoute (dst, toNeighbor);
+
+}
+
+bool
+PaymentNetwork::addNewRoute()
 {
   RoutingTableEntry toNeighbor;
   if (!m_routingTable.LookupRoute (rrepHeader.GetDst (), toNeighbor))
@@ -180,7 +190,7 @@ PaymentNetwork::HandleOffchainMsg (Ptr<Socket> socket)
   Ipv4Address receiver = m_socketAddresses[socket].GetLocal ();
 
 
-  UpdateRouteToNeighbor (sender, receiver);
+  //UpdateRouteToNeighbor (sender, receiver);
   TypeHeader tHeader (OFFCHAIN_TYPE_RREQ);
   packet->RemoveHeader (tHeader);
 
@@ -206,11 +216,11 @@ PaymentNetwork::HandleOffchainMsg (Ptr<Socket> socket)
 }
 
 /*
- Schedule to transmit hello packets every TIME_INTERVAL=100ms,
+ Schedule to transmit hello packets every TIME_INTERVAL=10s,
  starting at the initial value of time_elapsed.
 */
 void
-PaymentNetwork::ScheduleTransmitHelloPackets(int numberOfHelloEvents)
+PaymentNetwork::ScheduleTransmitPayChannelPackets(int numberOfEvents)
 {
     uint16_t event_counter = 0;
     double time_elapsed = Simulator::Now ().GetSeconds () + 
@@ -222,25 +232,31 @@ PaymentNetwork::ScheduleTransmitHelloPackets(int numberOfHelloEvents)
     - static_cast <double> (RAND_MAX) => ensure that 2 nodes join at the same time, will not transmit at the same time
                                          which results in packet collision => No node receives the HELLO packet.
     */
-    const double TIME_INTERVAL = 30; // 30 seconds
+    const double TIME_INTERVAL = 10; // 10 seconds
     
-    while (event_counter < numberOfHelloEvents)
+    while (event_counter < numberOfEvents)
     {
         time_elapsed += TIME_INTERVAL;
-        Simulator::Schedule (Seconds(time_elapsed), &PaymentNetwork::SendHello, this);
+        Simulator::Schedule (Seconds(time_elapsed), &PaymentNetwork::SendChMaintain, this);
         event_counter++;
     }
 }
 
 
 void 
-PaymentNetwork::SendHello ()
+PaymentNetwork::SendChMaintain ()
 {
-    PktHeader *header = CreateHelloPacketHeader();
-    SendPacket(*header);
+    //broadcast once
+    m_routingProtocol->SendHello();
+    //unicast
+    for(int i=0; i < m_ngbChTable.size(); i++)
+    {
+        m_routingProtocol->SendHello(m_ngbChTable.GetNgbIPaddrByIndex(i), 
+    }   
+
     NS_LOG_INFO("");
     NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s node "<< GetNodeAddress() <<
-                 " broadcasts HELLO on port " << m_peerPort);
+                 " broadcasts HELLO on port ");
 }
 
 

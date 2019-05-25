@@ -58,6 +58,7 @@ public:
   bool GetHelloEnable () const { return EnableHello; }
   void SetBroadcastEnable (bool f) { EnableBroadcast = f; }
   bool GetBroadcastEnable () const { return EnableBroadcast; }
+  void SetNeighborTable(Neighbors t) {m_nb =t; }
   //\}
 
  /**

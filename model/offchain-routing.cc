@@ -282,6 +282,8 @@ RoutingProtocol::SendHello (Ipv4Address dst, bool acked)
   Ipv4Address thisIpv4Address = ipv4->GetAddress(1,0).GetLocal(); //the first argument is the interface index
                                        //index = 0 returns the loopback address 127.0.0.7
   uint32_t  curDeposit = m_nb.GetChAvailDeposit();
+  if(curDeposit < 0)
+    curDeposit = m_nb.GetDefaultDeposit();
 
   HelloHeader HelloHeader(/*dst=*/ dst, /*dst seqno=*/ m_seqNo, /*origin=*/ thisIpv4Address, 
                                         /*lifetime=*/ Time (AllowedHelloLoss * HelloInterval), curDeposit);                                      
@@ -296,38 +298,32 @@ RoutingProtocol::SendHello (Ipv4Address dst, bool acked)
     
 }
 
+// 3 hellos; 1) broadcast or others (awareness) 2) channel open req (unicast), 3) acked hello (answer for the case 2)
 void
-RoutingProtocol::RecvHello (HelloHeader const & HelloHeader, Ipv4Address receiver )
+RoutingProtocol::RecvHello (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sender) 
 {
-  NS_LOG_FUNCTION (this << "from " << rrepHeader.GetDst ());
-  /*
-   *  Whenever a node receives a Hello message from a neighbor, the node
-   * SHOULD make sure that it has an active route to the neighbor, and
-   * create one if necessary.
-   */
-  RoutingTableEntry toNeighbor;
-  if (!m_routingTable.LookupRoute (rrepHeader.GetDst (), toNeighbor))
-    {
-      Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver));
-      RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ rrepHeader.GetDst (), /*validSeqNo=*/ true, /*seqno=*/ rrepHeader.GetDstSeqno (),
-                                              /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0),
-                                              /*hop=*/ 1, /*nextHop=*/ rrepHeader.GetDst (), /*lifeTime=*/ rrepHeader.GetLifeTime ());
-      m_routingTable.AddRoute (newEntry);
-    }
-  else
-    {
-      toNeighbor.SetLifeTime (std::max (Time (AllowedHelloLoss * HelloInterval), toNeighbor.GetLifeTime ()));
-      toNeighbor.SetSeqNo (rrepHeader.GetDstSeqno ());
-      toNeighbor.SetValidSeqNo (true);
-      toNeighbor.SetFlag (VALID);
-      toNeighbor.SetOutputDevice (m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver)));
-      toNeighbor.SetInterface (m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0));
-      m_routingTable.Update (toNeighbor);
-    }
-  if (EnableHello)
-    {
-      m_nb.Update (rrepHeader.GetDst (), Time (AllowedHelloLoss * HelloInterval));
-    }
+  NS_LOG_FUNCTION (this);
+  HelloHeader helloHeader;
+  p->RemoveHeader (helloHeader);
+  Ptr<Node> node = GetNode();
+  Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
+  Ipv4Address thisIpv4Address = ipv4->GetAddress(1,0).GetLocal(); //the first argument is the interface index
+                                       //index = 0 returns the loopback address 127.0.0.7
+
+  if(receiver != thisIpv4Address && !m_nb.IsNeighbor (sender)) //case 1. send req to open a channel
+  {
+    SendHello(sender, true);
+  }
+  else if (receiver == thisIpv4Address && helloHeader.GetAckRequired()) // case 3. add it to neighbor table
+  {
+    m_nb.update(sender, helloHeader.GetAvailableDeposit(), Time (AllowedHelloLoss * HelloInterval), true);
+    SendHello(sender, true);
+  }
+  else if (receiver == thisIpv4Address && m_nb.IsNeighbor (sender)) //case 2
+  {
+    m_nb.update(sender, helloHeader.GetAvailableDeposit(), Time (AllowedHelloLoss * HelloInterval), false); 
+  }
+  
 }
 
 

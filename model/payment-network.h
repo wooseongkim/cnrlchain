@@ -83,9 +83,10 @@ private:
 
     virtual void StartApplication (void);
     virtual void StopApplication (void);
-    void SendHello ();
+    // negibhor payment channel maintain
+    void SendChMaintain ();
     void SendPacket(PktHeader header);
-    void ScheduleTransmitHelloPackets (int numberOfHelloEvents);
+    void ScheduleTransmitPayChannelPackets (int num);
     Ipv4Address GetNodeAddress(void);
     
     void HandleRead (Ptr<Socket> socket);
@@ -145,6 +146,8 @@ private:
     
     bool m_firstSuccess; //for accounting purpose
     Ptr<offchain::RoutingProtocol> m_routingProtocol;
+      /// Handle neighbors payment channel
+    Neighbors m_ngbChTable;
     
 };
 
