@@ -21,7 +21,7 @@ class Neighbors
 {
 public:
   /// c-tor
-  Neighbors (Time delay);
+  Neighbors (Time delay, uint32_t defaultDposit);
   /// Neighbor description
   struct Neighbor
   {
@@ -33,8 +33,8 @@ public:
     uint32_t m_peerAvailChDeposit;  // peer available balance including received amount 
     bool close;
 
-    Neighbor (Ipv4Address ip, Time t) :
-      m_neighborAddress (ip), m_expireTime (t), close (false)
+    Neighbor (Ipv4Address ip, uint32_t myAmount, uint32_t peerAmount, Time t) :
+      m_neighborAddress (ip), m_expireTime (t), m_totalChDeposit (myAmount), m_peerTotalChDeposit (peerAmount), close (false)
     {
     }
   };
@@ -44,19 +44,21 @@ public:
   /// Check that node with address addr  is neighbor
   bool IsNeighbor (Ipv4Address addr);
   /// Update expire time for entry with address addr, if it exists, else add new entry
-  void Update (Ipv4Address addr, Time expire);
+  int Update (Ipv4Address addr, uint32_t amount, Time expire, bool acked);
   /// Remove all expired entries
   void Purge ();
   /// Schedule m_ntimer.
   void ScheduleTimer ();
   /// Remove all entries
   void Clear () { m_nb.clear (); }
-  /// open channel by deposit
-  void SetChDeposit(Ipv4Address addr);  
   // get amount of total channel deposit
-  uint32_t GetChDeposit(Ipv4Address addr);
+  uint32_t GetChMyDeposit(Ipv4Address addr);
   // get current available channel deposit
-  uint32_t GetChAvailDeposit(Ipv4Address addr);
+  uint32_t GetChMyAvailDeposit(Ipv4Address addr);
+    // get amount of total channel deposit
+  uint32_t GetChPeerDeposit(Ipv4Address addr);
+  // get current available channel deposit
+  uint32_t GetChPeerAvailDeposit(Ipv4Address addr);
   // decrease channel deposit
   void DecChDeposit(Ipv4Address addr, uint32_t pay);
   //increase channel deposit
@@ -79,7 +81,8 @@ private:
   Timer m_ntimer;
   /// vector of entries
   std::vector<Neighbor> m_nb;
-  //
+  //default deposit
+  uint32_t m_initDeposit;
 
   /// Process layer 2 TX error notification
   void ProcessTxError (WifiMacHeader const &);

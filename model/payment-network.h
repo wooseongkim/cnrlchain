@@ -8,10 +8,9 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/traced-callback.h"
 
-#include "ns3/pkt-header.h"
-#include "ns3/content-manager.h"
-#include "ns3/relationship.h"
-#include "ns3/interest-manager.h"
+#include "ns3/offchain-routing.h"
+#include "ns3/payroute-packet.h"
+#include "ns3/neighbors.h"
 
 using namespace std;
 
@@ -145,6 +144,7 @@ private:
     
     
     bool m_firstSuccess; //for accounting purpose
+    Ptr<offchain::RoutingProtocol> m_routingProtocol;
     
 };
 

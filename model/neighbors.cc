@@ -9,12 +9,14 @@ namespace ns3
 namespace offchain
 {
 
-Neighbors::Neighbors (Time delay) : 
+Neighbors::Neighbors (Time delay, uint32_t defaultDposit) : 
   m_ntimer (Timer::CANCEL_ON_DESTROY)
 {
   m_ntimer.SetDelay (delay);
   m_ntimer.SetFunction (&Neighbors::Purge, this);
+  m_initDeposit = defaultDposit;
   m_txErrorCallback = MakeCallback (&Neighbors::ProcessTxError, this);
+  b_autoChOpen = true;
 }
 
 bool
@@ -45,7 +47,7 @@ Neighbors::GetExpireTime (Ipv4Address addr)
 
 
 uint32_t 
-Neighbors::GetChDeposit(Ipv4Address addr)
+Neighbors::GetChMyDeposit(Ipv4Address addr)
 {
   Purge ();
   for (std::vector<Neighbor>::const_iterator i = m_nb.begin (); i
@@ -59,7 +61,7 @@ Neighbors::GetChDeposit(Ipv4Address addr)
 }
 
 uint32_t 
-Neighbors::GetChAvailDeposit(Ipv4Address addr)
+Neighbors::GetChMyAvailDeposit(Ipv4Address addr)
 {
   Purge ();
   for (std::vector<Neighbor>::const_iterator i = m_nb.begin (); i
@@ -71,6 +73,35 @@ Neighbors::GetChAvailDeposit(Ipv4Address addr)
     NS_LOG_LOGIC ("No available payment channel " << addr );
     return -1;
 }
+
+uint32_t 
+Neighbors::GetChPeerDeposit(Ipv4Address addr)
+{
+  Purge ();
+  for (std::vector<Neighbor>::const_iterator i = m_nb.begin (); i
+       != m_nb.end (); ++i)
+    {
+      if (i->m_neighborAddress == addr)
+        return (i->m_peerTotalChDeposit);
+    }
+    NS_LOG_LOGIC ("No available payment channel " << addr );
+    return -1;
+}
+
+uint32_t 
+Neighbors::GetChPeerAvailDeposit(Ipv4Address addr)
+{
+  Purge ();
+  for (std::vector<Neighbor>::const_iterator i = m_nb.begin (); i
+       != m_nb.end (); ++i)
+    {
+      if (i->m_neighborAddress == addr)
+        return (i->m_peerAvailChDeposit);
+    }
+    NS_LOG_LOGIC ("No available payment channel " << addr );
+    return -1;
+}
+
 
 void 
 Neighbors::DecChDeposit(Ipv4Address addr, uint32_t pay)
@@ -100,32 +131,31 @@ Neighbors::IncChDeposit(Ipv4Address addr, uint32_t pay)
     return -1;
 }
 
-void
-Neighbors::Update (Ipv4Address addr, Time expire)
+int
+Neighbors::Update (Ipv4Address addr, uint32_t peerAvailAmount, Time expire, bool acked)
 {
   for (std::vector<Neighbor>::iterator i = m_nb.begin (); i != m_nb.end (); ++i)
     if (i->m_neighborAddress == addr)
       {
-        i->m_expireTime
-          = std::max (expire + Simulator::Now (), i->m_expireTime);
-        if (i->m_hardwareAddress == Mac48Address ())
-          i->m_hardwareAddress = LookupMacAddress (i->m_neighborAddress);
-        return;
-      }
+        if(i->m_peerAvailChDeposit == peerAvailAmount) //received deposit should be same as stored one.
+        {
+          i->m_expireTime  = std::max (expire + Simulator::Now (), i->m_expireTime);
+          return 0;
+        }
+        else{
+          //need to redempt current balance to a main channel
+          return -1;
+        }
 
-  NS_LOG_LOGIC ("Open link to " << addr);
-  Neighbor neighbor (addr, LookupMacAddress (addr), expire + Simulator::Now ());
-  m_nb.push_back (neighbor);
+      }
+  if (acked == true) //agreement for open channel from a peer
+  {
+    NS_LOG_LOGIC ("Open a new payment channel to " << addr);
+    Neighbor neighbor (addr, m_initDeposit, peerAvailAmount, expire + Simulator::Now ());
+    m_nb.push_back (neighbor);
+  }
   Purge ();
 }
-
-
-void 
-Neighbors::SetChDeposit(Ipv4Address addr)
-{
-    
-}
-
 
 struct CloseNeighbor
 {

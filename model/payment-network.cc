@@ -110,6 +110,8 @@ void
 PaymentNetwork::StartApplication (void)
 {
     NS_LOG_FUNCTION (this);
+    m_routingProtocol = offchain::RoutingProtocol ();
+
     Ipv4Address broadcastAddr = Ipv4Address("255.255.255.255");
     Ipv4Address thisNodeAddress = GetNodeAddress();
     
@@ -152,6 +154,56 @@ PaymentNetwork::StartApplication (void)
     ScheduleTransmitHelloPackets(1000);
 }
 
+void
+PaymentNetwork::LookupRoute()
+{
+  RoutingTableEntry toNeighbor;
+  if (!m_routingTable.LookupRoute (rrepHeader.GetDst (), toNeighbor))
+    {
+      Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver));
+      RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ rrepHeader.GetDst (), /*validSeqNo=*/ true, /*seqno=*/ rrepHeader.GetDstSeqno (),
+                                              /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0),
+                                              /*hop=*/ 1, /*nextHop=*/ rrepHeader.GetDst (), /*lifeTime=*/ rrepHeader.GetLifeTime ());
+      m_routingTable.AddRoute (newEntry);
+    }
+
+}
+
+void
+PaymentNetwork::HandleOffchainMsg (Ptr<Socket> socket)
+{
+  NS_LOG_FUNCTION (this << socket);
+  Address sourceAddress;
+  Ptr<Packet> packet = socket->RecvFrom (sourceAddress);
+  InetSocketAddress inetSourceAddr = InetSocketAddress::ConvertFrom (sourceAddress);
+  Ipv4Address sender = inetSourceAddr.GetIpv4 ();
+  Ipv4Address receiver = m_socketAddresses[socket].GetLocal ();
+
+
+  UpdateRouteToNeighbor (sender, receiver);
+  TypeHeader tHeader (OFFCHAIN_TYPE_RREQ);
+  packet->RemoveHeader (tHeader);
+
+  switch (tHeader.Get ())
+    {
+    case OFFCHAIN_TYPE_RREQ:
+      {
+        m_routingProtocol->RecvRReq (packet, receiver, sender);
+        break;
+      }
+    case OFFCHAIN_TYPE_RREP:
+      {
+        m_routingProtocol->RecvRRep (packet, receiver, sender);
+        break;
+      }
+    case OFFCHAIN_TYPE_HELLO:
+      {
+        m_routingProtocol->RecvHello (packet, receiver, sender);
+        break;
+      }
+
+    }
+}
 
 /*
  Schedule to transmit hello packets every TIME_INTERVAL=100ms,
@@ -170,7 +222,7 @@ PaymentNetwork::ScheduleTransmitHelloPackets(int numberOfHelloEvents)
     - static_cast <double> (RAND_MAX) => ensure that 2 nodes join at the same time, will not transmit at the same time
                                          which results in packet collision => No node receives the HELLO packet.
     */
-    const double TIME_INTERVAL = 0.1; //100ms
+    const double TIME_INTERVAL = 30; // 30 seconds
     
     while (event_counter < numberOfHelloEvents)
     {
@@ -332,59 +384,7 @@ PaymentNetwork::PrintAllContent(Ipv4Address *array, uint32_t size)
 }
 
 
-void
-PaymentNetwork::HandleRead (Ptr<Socket> socket)
-{
-    NS_LOG_FUNCTION (this << socket);
-    Ptr<Packet> packet;
-    Address from;
 
-    NS_LOG_INFO("");
-    Ipv4Address thisIpv4Address = GetNodeAddress();
-
-    while ((packet = socket->RecvFrom (from)))
-    {
-        PktHeader *header = new PktHeader();
-        packet->PeekHeader(*header); //read the header from the packet.
-        
-        PacketType packetType = header->GetPacketType();
-        
-        NS_LOG_INFO ("This node: " << thisIpv4Address );
-        NS_LOG_INFO ("Encounter node: "<< InetSocketAddress::ConvertFrom (from).GetIpv4 () );
-        NS_LOG_INFO ("Encounter time: " << Simulator::Now ().GetSeconds () );
-        
-        switch (packetType)
-        {
-            case HELLO:
-                NS_LOG_INFO ("Receive message type: HELLO");
-                HandleHello(header);
-                break;
-                
-            case DATA:
-                NS_LOG_INFO ("Receive message type: DATA");
-                HandleData(header);
-                break;
-                
-            case DIGEST:
-                NS_LOG_INFO ("Receive message type: DIGEST");
-                HandleDigest(header);
-                break;
-                
-            case InterestUnknownContentProvider:
-                NS_LOG_INFO ("Receive message type: InterestUnknownContentProvider");
-                HandleInterestUnknownContentProvider(header);
-                break;
-                
-            case InterestKnownContentProvider:
-                NS_LOG_INFO ("Receive message type: InterestKnownContentProvider");
-                HandleInterestKnownContentProvider(header);
-                break;
-                
-            default:
-                return;
-        }
-   }
-}
 
 
 void
