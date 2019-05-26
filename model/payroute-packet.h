@@ -14,6 +14,7 @@ namespace offchain {
 
 enum MessageType
 {
+    // request response
   OFFCHAIN_TYPE_RREQ  = 1,
   OFFCHAIN_TYPE_RREP  = 2,
   OFFCHAIN_TYPE_HELLO = 3

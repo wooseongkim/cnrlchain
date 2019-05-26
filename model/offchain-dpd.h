@@ -11,6 +11,7 @@ namespace ns3
 {
 namespace offchain
 {
+    // message가 중복해서 들어오면 버린다.
 /**
  * \ingroup aodv
  * 

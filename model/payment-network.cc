@@ -21,6 +21,8 @@
 #include "ns3/ipv4-header.h"
 #include "ns3/ipv4.h"
 
+// 돈을 보내고 key를 받고 하는거를 구축
+
 using namespace std;
 
 namespace ns3 {

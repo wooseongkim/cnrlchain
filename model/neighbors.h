@@ -66,7 +66,7 @@ public:
   Callback<void, WifiMacHeader const &> GetTxErrorCallback () const { return m_txErrorCallback; }
  
   ///\name Handle link failure callback
-  //\{
+  //\{ m)
   void SetCallback (Callback<void, Ipv4Address> cb) { m_handleLinkFailure = cb; }
   Callback<void, Ipv4Address> GetCallback () const { return m_handleLinkFailure; }
   //\}

@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <limits>
 
+// hello은 조금 되어있다.
+// rreq, rres 해야된다.
 
 NS_LOG_COMPONENT_DEFINE ("OffchainRoutingProtocol");
 
