@@ -127,6 +127,116 @@ RoutingProtocol::RoutingProtocol () :
     }
 }
 
+TypeId
+RoutingProtocol::GetTypeId (void)
+{
+  static TypeId tid = TypeId ("ns3::aodv::RoutingProtocol")
+    .SetParent<Ipv4RoutingProtocol> ()
+    .AddConstructor<RoutingProtocol> ()
+    .AddAttribute ("HelloInterval", "HELLO messages emission interval.",
+                   TimeValue (Seconds (1)),
+                   MakeTimeAccessor (&RoutingProtocol::HelloInterval),
+                   MakeTimeChecker ())
+    .AddAttribute ("RreqRetries", "Maximum number of retransmissions of RREQ to discover a route",
+                   UintegerValue (2),
+                   MakeUintegerAccessor (&RoutingProtocol::RreqRetries),
+                   MakeUintegerChecker<uint32_t> ())
+    .AddAttribute ("RreqRateLimit", "Maximum number of RREQ per second.",
+                   UintegerValue (10),
+                   MakeUintegerAccessor (&RoutingProtocol::RreqRateLimit),
+                   MakeUintegerChecker<uint32_t> ())
+    .AddAttribute ("RerrRateLimit", "Maximum number of RERR per second.",
+                   UintegerValue (10),
+                   MakeUintegerAccessor (&RoutingProtocol::RerrRateLimit),
+                   MakeUintegerChecker<uint32_t> ())
+    .AddAttribute ("NodeTraversalTime", "Conservative estimate of the average one hop traversal time for packets and should include "
+                   "queuing delays, interrupt processing times and transfer times.",
+                   TimeValue (MilliSeconds (40)),
+                   MakeTimeAccessor (&RoutingProtocol::NodeTraversalTime),
+                   MakeTimeChecker ())
+    .AddAttribute ("NextHopWait", "Period of our waiting for the neighbour's RREP_ACK = 10 ms + NodeTraversalTime",
+                   TimeValue (MilliSeconds (50)),
+                   MakeTimeAccessor (&RoutingProtocol::NextHopWait),
+                   MakeTimeChecker ())
+    .AddAttribute ("ActiveRouteTimeout", "Period of time during which the route is considered to be valid",
+                   TimeValue (Seconds (3)),
+                   MakeTimeAccessor (&RoutingProtocol::ActiveRouteTimeout),
+                   MakeTimeChecker ())
+    .AddAttribute ("MyRouteTimeout", "Value of lifetime field in RREP generating by this node = 2 * max(ActiveRouteTimeout, PathDiscoveryTime)",
+                   TimeValue (Seconds (11.2)),
+                   MakeTimeAccessor (&RoutingProtocol::MyRouteTimeout),
+                   MakeTimeChecker ())
+    .AddAttribute ("BlackListTimeout", "Time for which the node is put into the blacklist = RreqRetries * NetTraversalTime",
+                   TimeValue (Seconds (5.6)),
+                   MakeTimeAccessor (&RoutingProtocol::BlackListTimeout),
+                   MakeTimeChecker ())
+    .AddAttribute ("DeletePeriod", "DeletePeriod is intended to provide an upper bound on the time for which an upstream node A "
+                   "can have a neighbor B as an active next hop for destination D, while B has invalidated the route to D."
+                   " = 5 * max (HelloInterval, ActiveRouteTimeout)",
+                   TimeValue (Seconds (15)),
+                   MakeTimeAccessor (&RoutingProtocol::DeletePeriod),
+                   MakeTimeChecker ())
+    .AddAttribute ("TimeoutBuffer", "Its purpose is to provide a buffer for the timeout so that if the RREP is delayed"
+                   " due to congestion, a timeout is less likely to occur while the RREP is still en route back to the source.",
+                   UintegerValue (2),
+                   MakeUintegerAccessor (&RoutingProtocol::TimeoutBuffer),
+                   MakeUintegerChecker<uint16_t> ())
+    .AddAttribute ("NetDiameter", "Net diameter measures the maximum possible number of hops between two nodes in the network",
+                   UintegerValue (35),
+                   MakeUintegerAccessor (&RoutingProtocol::NetDiameter),
+                   MakeUintegerChecker<uint32_t> ())
+    .AddAttribute ("NetTraversalTime", "Estimate of the average net traversal time = 2 * NodeTraversalTime * NetDiameter",
+                   TimeValue (Seconds (2.8)),
+                   MakeTimeAccessor (&RoutingProtocol::NetTraversalTime),
+                   MakeTimeChecker ())
+    .AddAttribute ("PathDiscoveryTime", "Estimate of maximum time needed to find route in network = 2 * NetTraversalTime",
+                   TimeValue (Seconds (5.6)),
+                   MakeTimeAccessor (&RoutingProtocol::PathDiscoveryTime),
+                   MakeTimeChecker ())
+    .AddAttribute ("MaxQueueLen", "Maximum number of packets that we allow a routing protocol to buffer.",
+                   UintegerValue (64),
+                   MakeUintegerAccessor (&RoutingProtocol::SetMaxQueueLen,
+                                         &RoutingProtocol::GetMaxQueueLen),
+                   MakeUintegerChecker<uint32_t> ())
+    .AddAttribute ("MaxQueueTime", "Maximum time packets can be queued (in seconds)",
+                   TimeValue (Seconds (30)),
+                   MakeTimeAccessor (&RoutingProtocol::SetMaxQueueTime,
+                                     &RoutingProtocol::GetMaxQueueTime),
+                   MakeTimeChecker ())
+    .AddAttribute ("AllowedHelloLoss", "Number of hello messages which may be loss for valid link.",
+                   UintegerValue (2),
+                   MakeUintegerAccessor (&RoutingProtocol::AllowedHelloLoss),
+                   MakeUintegerChecker<uint16_t> ())
+    .AddAttribute ("GratuitousReply", "Indicates whether a gratuitous RREP should be unicast to the node originated route discovery.",
+                   BooleanValue (true),
+                   MakeBooleanAccessor (&RoutingProtocol::SetGratuitousReplyFlag,
+                                        &RoutingProtocol::GetGratuitousReplyFlag),
+                   MakeBooleanChecker ())
+    .AddAttribute ("DestinationOnly", "Indicates only the destination may respond to this RREQ.",
+                   BooleanValue (false),
+                   MakeBooleanAccessor (&RoutingProtocol::SetDesinationOnlyFlag,
+                                        &RoutingProtocol::GetDesinationOnlyFlag),
+                   MakeBooleanChecker ())
+    .AddAttribute ("EnableHello", "Indicates whether a hello messages enable.",
+                   BooleanValue (true),
+                   MakeBooleanAccessor (&RoutingProtocol::SetHelloEnable,
+                                        &RoutingProtocol::GetHelloEnable),
+                   MakeBooleanChecker ())
+    .AddAttribute ("EnableBroadcast", "Indicates whether a broadcast data packets forwarding enable.",
+                   BooleanValue (true),
+                   MakeBooleanAccessor (&RoutingProtocol::SetBroadcastEnable,
+                                        &RoutingProtocol::GetBroadcastEnable),
+                   MakeBooleanChecker ())
+    .AddAttribute ("UniformRv",
+                   "Access to the underlying UniformRandomVariable",
+                   StringValue ("ns3::UniformRandomVariable"),
+                   MakePointerAccessor (&RoutingProtocol::m_uniformRandomVariable),
+                   MakePointerChecker<UniformRandomVariable> ())
+  ;
+  return tid;
+}
+
+
 void
 RoutingProtocol::ClosePaymentChannelToNextHop (Ipv4Address nextHop)
 {
@@ -134,72 +244,88 @@ RoutingProtocol::ClosePaymentChannelToNextHop (Ipv4Address nextHop)
   // record balance proof to the main chain
 }
 
+//broadcast periodic hello
 void
 RoutingProtocol::SendHello ()
 {
   NS_LOG_FUNCTION (this);
 
-  for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j = m_socketAddresses.begin (); j != m_socketAddresses.end (); ++j)
+  Ptr<Node> node = GetNode();
+  Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
+  Ipv4Address thisIpv4Address = ipv4->GetAddress(1,0).GetLocal(); //the first argument is the interface index
+                                       //index = 0 returns the loopback address 127.0.0.7
+  HelloHeader HelloHeader(/*dst=*/ dst, /*dst seqno=*/ m_seqNo, /*origin=*/ thisIpv4Address, 
+                                        /*lifetime=*/ Time (AllowedHelloLoss * HelloInterval), 0);                                       
+  Ptr<Packet> packet = Create<Packet> ();
+  packet->AddHeader (helloHeader);
+  TypeHeader tHeader (OFFCHAIN_TYPE_HELLO);
+  packet->AddHeader (tHeader);
+  // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
+  Ipv4Address destination;
+  if (iface.GetMask () == Ipv4Mask::GetOnes ())
     {
-      Ptr<Socket> socket = j->first;
-      Ipv4InterfaceAddress iface = j->second;
-      uint32_t  curDeposit = m_nb.GetChAvailDeposit();
-      if(curDeposit < 0)
-      {
-          
-      }
-      HelloHeader HelloHeader(/*dst=*/ iface.GetLocal (), /*dst seqno=*/ m_seqNo, /*origin=*/ iface.GetLocal (), 
-                                            /*lifetime=*/ Time (AllowedHelloLoss * HelloInterval), curDeposit);                                      
-      Ptr<Packet> packet = Create<Packet> ();
-      packet->AddHeader (helloHeader);
-      TypeHeader tHeader (OFFCHAIN_TYPE_HELLO);
-      packet->AddHeader (tHeader);
-      // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
-      Ipv4Address destination;
-      if (iface.GetMask () == Ipv4Mask::GetOnes ())
-        {
-          destination = Ipv4Address ("255.255.255.255");
-        }
-      else
-        { 
-          destination = iface.GetBroadcast ();
-        }
-      socket->SendTo (packet, 0, InetSocketAddress (destination, OFFCHAIN_PORT));
-    }
-}
-
-void
-RoutingProtocol::RecvHello (HelloHeader const & HelloHeader, Ipv4Address receiver )
-{
-  NS_LOG_FUNCTION (this << "from " << rrepHeader.GetDst ());
-  /*
-   *  Whenever a node receives a Hello message from a neighbor, the node
-   * SHOULD make sure that it has an active route to the neighbor, and
-   * create one if necessary.
-   */
-  RoutingTableEntry toNeighbor;
-  if (!m_routingTable.LookupRoute (rrepHeader.GetDst (), toNeighbor))
-    {
-      Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver));
-      RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ rrepHeader.GetDst (), /*validSeqNo=*/ true, /*seqno=*/ rrepHeader.GetDstSeqno (),
-                                              /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0),
-                                              /*hop=*/ 1, /*nextHop=*/ rrepHeader.GetDst (), /*lifeTime=*/ rrepHeader.GetLifeTime ());
-      m_routingTable.AddRoute (newEntry);
+      destination = Ipv4Address ("255.255.255.255");
     }
   else
-    {
-      toNeighbor.SetLifeTime (std::max (Time (AllowedHelloLoss * HelloInterval), toNeighbor.GetLifeTime ()));
-      toNeighbor.SetSeqNo (rrepHeader.GetDstSeqno ());
-      toNeighbor.SetValidSeqNo (true);
-      toNeighbor.SetFlag (VALID);
-      toNeighbor.SetOutputDevice (m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver)));
-      toNeighbor.SetInterface (m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0));
-      m_routingTable.Update (toNeighbor);
+    { 
+      destination = iface.GetBroadcast ();
     }
-  if (EnableHello)
-    {
-      m_nb.Update (rrepHeader.GetDst (), Time (AllowedHelloLoss * HelloInterval));
-    }
+  socket->SendTo (packet, 0, InetSocketAddress (destination, OFFCHAIN_PORT));
+    
+}
+
+// unicast hello for channel open 
+void
+RoutingProtocol::SendHello (Ipv4Address dst, bool acked)
+{
+  NS_LOG_FUNCTION (this);
+  Ptr<Node> node = GetNode();
+  Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
+  Ipv4Address thisIpv4Address = ipv4->GetAddress(1,0).GetLocal(); //the first argument is the interface index
+                                       //index = 0 returns the loopback address 127.0.0.7
+  uint32_t  curDeposit = m_nb.GetChAvailDeposit();
+  if(curDeposit < 0)
+    curDeposit = m_nb.GetDefaultDeposit();
+
+  HelloHeader HelloHeader(/*dst=*/ dst, /*dst seqno=*/ m_seqNo, /*origin=*/ thisIpv4Address, 
+                                        /*lifetime=*/ Time (AllowedHelloLoss * HelloInterval), curDeposit);                                      
+  if(acked)
+    HelloHeader.SetAckRequired(true); //set ack for requesting channel open
+  Ptr<Packet> packet = Create<Packet> ();
+  packet->AddHeader (helloHeader);
+  TypeHeader tHeader (OFFCHAIN_TYPE_HELLO);
+  packet->AddHeader (tHeader);
+
+  socket->SendTo (packet, 0, InetSocketAddress (dst, OFFCHAIN_PORT));
+    
+}
+
+// 3 hellos; 1) broadcast or others (awareness) 2) channel open req (unicast), 3) acked hello (answer for the case 2)
+void
+RoutingProtocol::RecvHello (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sender) 
+{
+  NS_LOG_FUNCTION (this);
+  HelloHeader helloHeader;
+  p->RemoveHeader (helloHeader);
+  Ptr<Node> node = GetNode();
+  Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
+  Ipv4Address thisIpv4Address = ipv4->GetAddress(1,0).GetLocal(); //the first argument is the interface index
+                                       //index = 0 returns the loopback address 127.0.0.7
+
+  if(receiver != thisIpv4Address && !m_nb.IsNeighbor (sender)) //case 1. send req to open a channel
+  {
+    SendHello(sender, true);
+  }
+  else if (receiver == thisIpv4Address && helloHeader.GetAckRequired()) // case 3. add it to neighbor table
+  {
+    m_nb.update(sender, helloHeader.GetAvailableDeposit(), Time (AllowedHelloLoss * HelloInterval), true);
+    SendHello(sender, true);
+  }
+  else if (receiver == thisIpv4Address && m_nb.IsNeighbor (sender)) //case 2
+  {
+    m_nb.update(sender, helloHeader.GetAvailableDeposit(), Time (AllowedHelloLoss * HelloInterval), false); 
+  }
+  
 }
 
 
@@ -448,45 +574,6 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
     }
 }
 
-void
-RoutingProtocol::RecvAodv (Ptr<Socket> socket)
-{
-  NS_LOG_FUNCTION (this << socket);
-  Address sourceAddress;
-  Ptr<Packet> packet = socket->RecvFrom (sourceAddress);
-  InetSocketAddress inetSourceAddr = InetSocketAddress::ConvertFrom (sourceAddress);
-  Ipv4Address sender = inetSourceAddr.GetIpv4 ();
-  Ipv4Address receiver = m_socketAddresses[socket].GetLocal ();
-  NS_LOG_DEBUG ("AODV node " << this << " received a AODV packet from " << sender << " to " << receiver);
-
-  UpdateRouteToNeighbor (sender, receiver);
-  TypeHeader tHeader (AODVTYPE_RREQ);
-  packet->RemoveHeader (tHeader);
-  if (!tHeader.IsValid ())
-    {
-      NS_LOG_DEBUG ("AODV message " << packet->GetUid () << " with unknown type received: " << tHeader.Get () << ". Drop");
-      return; // drop
-    }
-  switch (tHeader.Get ())
-    {
-    case OFFCHAIN_TYPE_RREQ:
-      {
-        RecvRequest (packet, receiver, sender);
-        break;
-      }
-    case OFFCHAIN_TYPE_RREP:
-      {
-        RecvReply (packet, receiver, sender);
-        break;
-      }
-    case OFFCHAIN_TYPE_HELLO:
-      {
-        RecvHello (packet, receiver, sender);
-        break;
-      }
-
-    }
-}
 
 
 } /*offchain*/

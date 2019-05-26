@@ -8,10 +8,9 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/traced-callback.h"
 
-#include "ns3/pkt-header.h"
-#include "ns3/content-manager.h"
-#include "ns3/relationship.h"
-#include "ns3/interest-manager.h"
+#include "ns3/offchain-routing.h"
+#include "ns3/payroute-packet.h"
+#include "ns3/neighbors.h"
 
 using namespace std;
 
@@ -84,9 +83,10 @@ private:
 
     virtual void StartApplication (void);
     virtual void StopApplication (void);
-    void SendHello ();
+    // negibhor payment channel maintain
+    void SendChMaintain ();
     void SendPacket(PktHeader header);
-    void ScheduleTransmitHelloPackets (int numberOfHelloEvents);
+    void ScheduleTransmitPayChannelPackets (int num);
     Ipv4Address GetNodeAddress(void);
     
     void HandleRead (Ptr<Socket> socket);
@@ -145,6 +145,9 @@ private:
     
     
     bool m_firstSuccess; //for accounting purpose
+    Ptr<offchain::RoutingProtocol> m_routingProtocol;
+      /// Handle neighbors payment channel
+    Neighbors m_ngbChTable;
     
 };
 
