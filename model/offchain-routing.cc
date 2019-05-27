@@ -417,7 +417,7 @@ RoutingProtocol::SendRequest (Ipv4Address dst)
 
 
 void
-RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
+RoutingProtocol::RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
 {
   NS_LOG_FUNCTION (this);
   RreqHeader rreqHeader;
