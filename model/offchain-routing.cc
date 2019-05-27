@@ -22,7 +22,8 @@ namespace offchain
 {
 NS_OBJECT_ENSURE_REGISTERED (RoutingProtocol);
 
-const uint32_t RoutingProtocol::OFFCHAIN_PORT = 1200;
+const uint32_t RoutingProtocol::OFFCHAIN_ROUTING_PORT = 1200;
+const uint32_t RoutingProtocol::OFFCHAIN_HELLO_PORT = 1400;
 
 
 
@@ -119,6 +120,21 @@ RoutingProtocol::RoutingProtocol () :
   m_rreqRateLimitTimer (Timer::CANCEL_ON_DESTROY),
   m_rerrRateLimitTimer (Timer::CANCEL_ON_DESTROY)
 {
+
+    TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
+    m_routingSocket = Socket::CreateSocket (GetNode (), tid);
+    m_routingSocket->SetAllowBroadcast(true);
+    InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), OFFCHAIN_ROUTING_PORT);
+    m_routingSocket->Bind (local);
+    m_routingSocket->Connect (InetSocketAddress (broadcastAddr, OFFCHAIN_ROUTING_PORT)); //Enable broadcast
+
+    TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
+    m_helloSocket = Socket::CreateSocket (GetNode (), tid);
+    m_helloSocket->SetAllowBroadcast(true);
+    InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), OFFCHAIN_HELLO_PORT);
+    m_helloSocket->Bind (local);
+    m_helloSocket->Connect (InetSocketAddress (broadcastAddr, OFFCHAIN_HELLO_PORT)); //Enable broadcast
+
   if (EnableHello)
     {
       m_nb.SetCallback (MakeCallback (&RoutingProtocol::ClosePaymentChannelToNextHop, this));
@@ -387,33 +403,30 @@ RoutingProtocol::SendRReq (Ipv4Address dst, uint32_t transAmount)
   rreqHeader.SetId (m_requestId);
   rreqHeader.SetHopCount (0);
 
-  // Send RREQ as subnet directed broadcast from each interface used by aodv
-  for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j =
-         m_socketAddresses.begin (); j != m_socketAddresses.end (); ++j)
+  //send rreq
+  Ptr<Socket> socket = j->first;
+  Ipv4InterfaceAddress iface = j->second;
+
+  rreqHeader.SetOrigin (iface.GetLocal ());
+  m_rreqIdCache.IsDuplicate (iface.GetLocal (), m_requestId);
+
+  Ptr<Packet> packet = Create<Packet> ();
+  packet->AddHeader (rreqHeader);
+  TypeHeader tHeader (OFFCHAIN_ROUTING_RREP);
+  packet->AddHeader (tHeader);
+  // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
+  Ipv4Address destination;
+  if (iface.GetMask () == Ipv4Mask::GetOnes ())
     {
-      Ptr<Socket> socket = j->first;
-      Ipv4InterfaceAddress iface = j->second;
-
-      rreqHeader.SetOrigin (iface.GetLocal ());
-      m_rreqIdCache.IsDuplicate (iface.GetLocal (), m_requestId);
-
-      Ptr<Packet> packet = Create<Packet> ();
-      packet->AddHeader (rreqHeader);
-      TypeHeader tHeader (OFFCHAIN_ROUTING_RREP);
-      packet->AddHeader (tHeader);
-      // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
-      Ipv4Address destination;
-      if (iface.GetMask () == Ipv4Mask::GetOnes ())
-        {
-          destination = Ipv4Address ("255.255.255.255");
-        }
-      else
-        { 
-          destination = iface.GetBroadcast ();
-        }
-      NS_LOG_DEBUG ("Send RREQ with id " << rreqHeader.GetId () << " to socket");
-      socket->SendTo (packet, 0, InetSocketAddress (destination, OFFCHAIN_PORT));
+      destination = Ipv4Address ("255.255.255.255");
     }
+  else
+    { 
+      destination = iface.GetBroadcast ();
+    }
+  NS_LOG_DEBUG ("Send RREQ with id " << rreqHeader.GetId () << " to socket");
+  socket->SendTo (packet, 0, InetSocketAddress (destination, OFFCHAIN_PORT));
+    
   ScheduleRreqRetry (dst);
 
 }

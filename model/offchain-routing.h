@@ -23,7 +23,8 @@ class RoutingProtocol : public Ipv4RoutingProtocol
 {
 public:
   static TypeId GetTypeId (void);
-  static const uint32_t OFFCHAIN_PORT;
+  static const uint32_t OFFCHAIN_ROUTING_PORT;
+  static const uint32_t OFFCHAIN_HELLO_PORT;
 
   /// c-tor
   RoutingProtocol ();
@@ -115,6 +116,9 @@ private:
 
   /// IP protocol
   Ptr<Ipv4> m_ipv4;
+  //
+  Ptr<Socket> m_routingSocket;
+  Ptr<Socket> m_helloSocket;
   /// Raw socket per each IP interface, map socket -> iface address (IP + mask)
   std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketAddresses;
   /// Loopback device used to defer RREQ until packet will be fully formed
