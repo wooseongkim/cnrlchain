@@ -191,12 +191,12 @@ PaymentNetwork::HandleOffchainMsg (Ptr<Socket> socket)
 
 
   //UpdateRouteToNeighbor (sender, receiver);
-  TypeHeader tHeader (OFFCHAIN_TYPE_RREQ);
+  TypeHeader tHeader (OFFCHAIN_ROUTING_RREP);
   packet->RemoveHeader (tHeader);
 
   switch (tHeader.Get ())
     {
-    case OFFCHAIN_TYPE_RREQ:
+    case OFFCHAIN_ROUTING_RREP:
       {
         m_routingProtocol->RecvRReq (packet, receiver, sender);
         break;
@@ -248,15 +248,14 @@ PaymentNetwork::SendChMaintain ()
 {
     //broadcast once
     m_routingProtocol->SendHello();
-    //unicast
+    //unicast to all neighbor
     for(int i=0; i < m_ngbChTable.size(); i++)
     {
-        m_routingProtocol->SendHello(m_ngbChTable.GetNgbIPaddrByIndex(i), 
+        m_routingProtocol->SendHello(m_ngbChTable.GetNgbIPaddrByIndex(i), false);
     }   
 
     NS_LOG_INFO("");
-    NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s node "<< GetNodeAddress() <<
-                 " broadcasts HELLO on port ");
+    NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s node "<< GetNodeAddress() <<  " broadcasts HELLO on port ");
 }
 
 

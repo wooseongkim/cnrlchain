@@ -242,6 +242,17 @@ RoutingProtocol::ClosePaymentChannelToNextHop (Ipv4Address nextHop)
   // record balance proof to the main chain
 }
 
+Ipv4Address
+RoutingProtocol::GetNodeAddress()
+{
+    //Figure out the IP address of this current node
+    Ptr<Node> node = GetNode();
+    Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
+    Ipv4Address thisIpv4Address = ipv4->GetAddress(1,0).GetLocal(); //the first argument is the interface index
+                                       //index = 0 returns the loopback address 127.0.0.1
+    return thisIpv4Address;
+}
+
 //broadcast periodic hello
 void
 RoutingProtocol::SendHello ()
@@ -328,13 +339,13 @@ RoutingProtocol::RecvHello (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
 
 
 void
-RoutingProtocol::SendRequest (Ipv4Address dst)
+RoutingProtocol::SendRReq (Ipv4Address dst, uint32_t transAmount)
 {
   NS_LOG_FUNCTION ( this << dst);
-  // A node SHOULD NOT originate more than RREQ_RATELIMIT RREQ messages per second.
+  // A node SHOULD NOT originate more than RREQ_RATELIMIT RREQ messages per 100 second.
   if (m_rreqCount == RreqRateLimit)
     {
-      Simulator::Schedule (m_rreqRateLimitTimer.GetDelayLeft () + MicroSeconds (100),
+      Simulator::Schedule (m_rreqRateLimitTimer.GetDelayLeft () + Seconds (100),
                            &RoutingProtocol::SendRequest, this, dst);
       return;
     }
@@ -358,10 +369,9 @@ RoutingProtocol::SendRequest (Ipv4Address dst)
   else
     {
       rreqHeader.SetUnknownSeqno (true);
-      Ptr<NetDevice> dev = 0;
-      RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ dst, /*validSeqNo=*/ false, /*seqno=*/ 0,
-                                              /*iface=*/ Ipv4InterfaceAddress (),/*hop=*/ 0,
-                                              /*nextHop=*/ Ipv4Address (), /*lifeTime=*/ Seconds (0));
+      RoutingTableEntry newEntry (/*dst=*/ dst, /*validSeqNo=*/ false, /*seqno=*/ 0,
+                     GetNodeAddress (), /*hop=*/ 0, /*transAmount=*/ transAmount,
+                     /*nextHop=*/ Ipv4Address (), /*lifeTime=*/ Seconds (0));                                
       newEntry.SetFlag (IN_SEARCH);
       m_routingTable.AddRoute (newEntry);
     }
@@ -389,7 +399,7 @@ RoutingProtocol::SendRequest (Ipv4Address dst)
 
       Ptr<Packet> packet = Create<Packet> ();
       packet->AddHeader (rreqHeader);
-      TypeHeader tHeader (OFFCHAIN_TYPE_RREQ);
+      TypeHeader tHeader (OFFCHAIN_ROUTING_RREP);
       packet->AddHeader (tHeader);
       // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
       Ipv4Address destination;
@@ -405,14 +415,7 @@ RoutingProtocol::SendRequest (Ipv4Address dst)
       socket->SendTo (packet, 0, InetSocketAddress (destination, OFFCHAIN_PORT));
     }
   ScheduleRreqRetry (dst);
-  if (EnableHello)
-    {
-      if (!m_htimer.IsRunning ())
-        {
-          m_htimer.Cancel ();
-          m_htimer.Schedule (HelloInterval - Time (0.01 * MilliSeconds (m_uniformRandomVariable->GetInteger (0, 10))));
-        }
-    }
+
 }
 
 

@@ -60,7 +60,7 @@ public:
   bool GetBroadcastEnable () const { return EnableBroadcast; }
   void SetNeighborTable(Neighbors t) {m_nb =t; }
   //\}
-
+  Ipv4Address GetNodeAddress(void);
  /**
   * Assign a fixed random variable stream number to the random variables
   * used by this model.  Return the number of streams (possibly zero) that
@@ -178,13 +178,10 @@ private:
   /// Receive and process control packet
   void RecvPaymentMsg (Ptr<Socket> socket);
   /// Receive RREQ
-  void RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src);
+  void RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src);
   /// Receive RREP
-  void RecvReply (Ptr<Packet> p, Ipv4Address my,Ipv4Address src);
-  /// Receive RREP_ACK
-  void RecvReplyAck (Ipv4Address neighbor);
-  /// Receive RERR from node with address src
-  void RecvError (Ptr<Packet> p, Ipv4Address src);
+  void RecvRRep (Ptr<Packet> p, Ipv4Address my,Ipv4Address src);
+
   //\}
 
   ///\name Send
@@ -194,7 +191,7 @@ private:
   /// Send hello
   void SendHello ();
   /// Send RREQ
-  void SendRequest (Ipv4Address dst);
+  void SendRReq (Ipv4Address dst, uint32_t amount);
   /// Send RREP
   void SendReply (RreqHeader const & rreqHeader, RoutingTableEntry const & toOrigin);
   /** Send RREP by intermediate node
