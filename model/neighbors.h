@@ -1,3 +1,7 @@
+/*
+ * routingprotocol, neighbor definition
+ */
+
 #ifndef OFFCHAINNEIGHBOR_H
 #define OFFCHAINNEIGHBOR_H
 

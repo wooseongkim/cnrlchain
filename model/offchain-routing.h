@@ -27,7 +27,9 @@ public:
 
   /// c-tor
   RoutingProtocol ();
+  // 소멸 생성자
   virtual ~RoutingProtocol();
+  // 배치
   virtual void DoDispose ();
 
   ///\name From Ipv4RoutingProtocol

@@ -88,17 +88,17 @@ NS_OBJECT_ENSURE_REGISTERED (DeferredRouteOutputTag);
 
 //-----------------------------------------------------------------------------
 RoutingProtocol::RoutingProtocol () :
-  RreqRetries (2),
+  RreqRetries (2),                  // 재전송 2
   RreqRateLimit (10),
   RerrRateLimit (10),
-  ActiveRouteTimeout (Seconds (3)),
-  NetDiameter (35),
-  NodeTraversalTime (MilliSeconds (40)),
-  NetTraversalTime (Time ((2 * NetDiameter) * NodeTraversalTime)),
-  PathDiscoveryTime ( Time (2 * NetTraversalTime)),
-  MyRouteTimeout (Time (2 * std::max (PathDiscoveryTime, ActiveRouteTimeout))),
-  HelloInterval (Seconds (60)),
-  AllowedHelloLoss (2),
+  ActiveRouteTimeout (Seconds (3)), // 경로가 유효한 것으로 간주되는 시간
+  NetDiameter (35),                 // 두 노드사이에서 최대 가능한 홉 수
+  NodeTraversalTime (MilliSeconds (40)),                                        // 평균 1홉 통과 시간
+  NetTraversalTime (Time ((2 * NetDiameter) * NodeTraversalTime)),              // 평균 NodeTraversalTime
+  PathDiscoveryTime ( Time (2 * NetTraversalTime)),                             // max
+  MyRouteTimeout (Time (2 * std::max (PathDiscoveryTime, ActiveRouteTimeout))), // 노드에서 생성한 RREP의 수명 필드 값
+  HelloInterval (Seconds (60)),                                                 // hellointerval마다 노드는 마지막 hellointerval 내에서 브로드캐스트를 전송했는지 여부 측정, 안왔으면 hello 메세지를 보냄
+  AllowedHelloLoss (2),                                                         // 손실될 수 있는 hello 수
   DeletePeriod (Time (5 * std::max (ActiveRouteTimeout, HelloInterval))),
   NextHopWait (NodeTraversalTime + MilliSeconds (10)),
   TimeoutBuffer (2),
@@ -115,7 +115,7 @@ RoutingProtocol::RoutingProtocol () :
   m_rreqIdCache (PathDiscoveryTime),
   m_dpd (PathDiscoveryTime),
   m_nb (HelloInterval),
-  m_rreqCount (0),
+  m_rreqCount (0),                                  // RREQ 속도 제어에 사용된 RREQ 수
   m_rerrCount (0),
   m_htimer (Timer::CANCEL_ON_DESTROY),
   m_rreqRateLimitTimer (Timer::CANCEL_ON_DESTROY),
@@ -283,7 +283,7 @@ RoutingProtocol::SendHello (Ipv4Address dst, bool acked)
   Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
   Ipv4Address thisIpv4Address = ipv4->GetAddress(1,0).GetLocal(); //the first argument is the interface index
                                        //index = 0 returns the loopback address 127.0.0.7
-  uint32_t  curDeposit = m_nb.GetChAvailDeposit();
+  uint32_t  curDeposit = m_nb.GetChAvailDeposit(); // m_nb : neighbors definication
   if(curDeposit < 0)
     curDeposit = m_nb.GetDefaultDeposit();
 
