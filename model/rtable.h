@@ -34,7 +34,7 @@ class RoutingTableEntry
 public:
   /// c-to
   RoutingTableEntry (Ipv4Address dst = Ipv4Address (), bool vSeqNo = false, uint32_t m_seqNo = 0,
-                     Ipv4InterfaceAddress iface = Ipv4InterfaceAddress (), uint16_t  hops = 0, uint32_t transAmount = 0,
+                     Ipv4Address iface = Ipv4Address (), uint16_t  hops = 0, uint32_t transAmount = 0,
                      Ipv4Address nextHop = Ipv4Address (), Time lifetime = Simulator::Now ());
 
   ~RoutingTableEntry ();

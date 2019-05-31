@@ -89,6 +89,7 @@ private:
     void ScheduleTransmitPayChannelPackets (int num);
     Ipv4Address GetNodeAddress(void);
     
+    void HandleOffchainMsg (Ptr<Socket> socket);
     void HandleRead (Ptr<Socket> socket);
     void HandleData(PktHeader *header);
     void HandleHello(PktHeader *header);
@@ -114,6 +115,8 @@ private:
     //Print content line by line
     void PrintAllContent(Ipv4Address *array, uint32_t size);
     void DecideWhetherToSendContentNameDigest(PktHeader *header);
+
+    void PaymentNetwork::SendChMaintain ();
     
     
     uint32_t m_count;

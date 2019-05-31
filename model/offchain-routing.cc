@@ -24,7 +24,8 @@ namespace offchain
 {
 NS_OBJECT_ENSURE_REGISTERED (RoutingProtocol);
 
-const uint32_t RoutingProtocol::OFFCHAIN_PORT = 1200;
+const uint32_t RoutingProtocol::OFFCHAIN_ROUTING_PORT = 1200;
+const uint32_t RoutingProtocol::OFFCHAIN_HELLO_PORT = 1400;
 
 
 
@@ -121,6 +122,20 @@ RoutingProtocol::RoutingProtocol () :
   m_rreqRateLimitTimer (Timer::CANCEL_ON_DESTROY),
   m_rerrRateLimitTimer (Timer::CANCEL_ON_DESTROY)
 {
+    //listen broadcast packets
+    TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
+    m_routingSocket = Socket::CreateSocket (GetNode (), tid);
+    m_routingSocket->SetAllowBroadcast(true);
+    InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), OFFCHAIN_ROUTING_PORT);
+    m_routingSocket->Bind (local);
+    m_routingSocket->Connect (InetSocketAddress (broadcastAddr, OFFCHAIN_ROUTING_PORT)); //Enable broadcast
+
+    m_helloSocket = Socket::CreateSocket (GetNode (), tid);
+    m_helloSocket->SetAllowBroadcast(true);
+    InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), OFFCHAIN_HELLO_PORT);
+    m_helloSocket->Bind (local);
+    m_helloSocket->Connect (InetSocketAddress (broadcastAddr, OFFCHAIN_HELLO_PORT)); //Enable broadcast
+
   if (EnableHello)
     {
       m_nb.SetCallback (MakeCallback (&RoutingProtocol::ClosePaymentChannelToNextHop, this));
@@ -244,6 +259,17 @@ RoutingProtocol::ClosePaymentChannelToNextHop (Ipv4Address nextHop)
   // record balance proof to the main chain
 }
 
+Ipv4Address
+RoutingProtocol::GetNodeAddress()
+{
+    //Figure out the IP address of this current node
+    Ptr<Node> node = GetNode();
+    Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
+    Ipv4Address thisIpv4Address = ipv4->GetAddress(1,0).GetLocal(); //the first argument is the interface index
+                                       //index = 0 returns the loopback address 127.0.0.1
+    return thisIpv4Address;
+}
+
 //broadcast periodic hello
 void
 RoutingProtocol::SendHello ()
@@ -270,7 +296,7 @@ RoutingProtocol::SendHello ()
     { 
       destination = iface.GetBroadcast ();
     }
-  socket->SendTo (packet, 0, InetSocketAddress (destination, OFFCHAIN_PORT));
+  m_helloSocket->SendTo (packet, 0, InetSocketAddress (destination, OFFCHAIN_HELLO_PORT));
     
 }
 
@@ -293,10 +319,10 @@ RoutingProtocol::SendHello (Ipv4Address dst, bool acked)
     HelloHeader.SetAckRequired(true); //set ack for requesting channel open
   Ptr<Packet> packet = Create<Packet> ();
   packet->AddHeader (helloHeader);
-  TypeHeader tHeader (OFFCHAIN_TYPE_HELLO);
+  TypeHeader tHeader (OFFCHAIN_ROUTING_HELLO);
   packet->AddHeader (tHeader);
 
-  socket->SendTo (packet, 0, InetSocketAddress (dst, OFFCHAIN_PORT));
+  m_helloSocket->SendTo (packet, 0, InetSocketAddress (dst, OFFCHAIN_HELLO_PORT));
     
 }
 
@@ -330,13 +356,13 @@ RoutingProtocol::RecvHello (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
 
 
 void
-RoutingProtocol::SendRequest (Ipv4Address dst)
+RoutingProtocol::SendRReq (Ipv4Address dst, uint32_t transAmount)
 {
   NS_LOG_FUNCTION ( this << dst);
-  // A node SHOULD NOT originate more than RREQ_RATELIMIT RREQ messages per second.
+  // A node SHOULD NOT originate more than RREQ_RATELIMIT RREQ messages per 100 second.
   if (m_rreqCount == RreqRateLimit)
     {
-      Simulator::Schedule (m_rreqRateLimitTimer.GetDelayLeft () + MicroSeconds (100),
+      Simulator::Schedule (m_rreqRateLimitTimer.GetDelayLeft () + Seconds (100),
                            &RoutingProtocol::SendRequest, this, dst);
       return;
     }
@@ -360,10 +386,9 @@ RoutingProtocol::SendRequest (Ipv4Address dst)
   else
     {
       rreqHeader.SetUnknownSeqno (true);
-      Ptr<NetDevice> dev = 0;
-      RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ dst, /*validSeqNo=*/ false, /*seqno=*/ 0,
-                                              /*iface=*/ Ipv4InterfaceAddress (),/*hop=*/ 0,
-                                              /*nextHop=*/ Ipv4Address (), /*lifeTime=*/ Seconds (0));
+      RoutingTableEntry newEntry (/*dst=*/ dst, /*validSeqNo=*/ false, /*seqno=*/ 0,
+                     GetNodeAddress (), /*hop=*/ 0, /*transAmount=*/ transAmount,
+                     /*nextHop=*/ Ipv4Address (), /*lifeTime=*/ Seconds (0));                                
       newEntry.SetFlag (IN_SEARCH);
       m_routingTable.AddRoute (newEntry);
     }
@@ -379,53 +404,33 @@ RoutingProtocol::SendRequest (Ipv4Address dst)
   rreqHeader.SetId (m_requestId);
   rreqHeader.SetHopCount (0);
 
-  // Send RREQ as subnet directed broadcast from each interface used by aodv
-  for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j =
-         m_socketAddresses.begin (); j != m_socketAddresses.end (); ++j)
-    {
-      Ptr<Socket> socket = j->first;
-      Ipv4InterfaceAddress iface = j->second;
+  //send rreq
+  rreqHeader.SetOrigin (GetNodeAddress());
+  m_rreqIdCache.IsDuplicate (GetNodeAddress(), m_requestId);
 
-      rreqHeader.SetOrigin (iface.GetLocal ());
-      m_rreqIdCache.IsDuplicate (iface.GetLocal (), m_requestId);
-
-      Ptr<Packet> packet = Create<Packet> ();
-      packet->AddHeader (rreqHeader);
-      TypeHeader tHeader (OFFCHAIN_TYPE_RREQ);
-      packet->AddHeader (tHeader);
-      // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
-      Ipv4Address destination;
-      if (iface.GetMask () == Ipv4Mask::GetOnes ())
-        {
-          destination = Ipv4Address ("255.255.255.255");
-        }
-      else
-        { 
-          destination = iface.GetBroadcast ();
-        }
-      NS_LOG_DEBUG ("Send RREQ with id " << rreqHeader.GetId () << " to socket");
-      socket->SendTo (packet, 0, InetSocketAddress (destination, OFFCHAIN_PORT));
-    }
+  Ptr<Packet> packet = Create<Packet> ();
+  packet->AddHeader (rreqHeader);
+  TypeHeader tHeader (OFFCHAIN_ROUTING_RREP);
+  packet->AddHeader (tHeader);
+  // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
+  Ipv4Address destination = Ipv4Address ("255.255.255.255");;
+  NS_LOG_DEBUG ("Send RREQ with id " << rreqHeader.GetId () << " to socket");
+  socket->SendTo (packet, 0, InetSocketAddress (destination, OFFCHAIN_ROUTING_PORT));
+  //if no rrep, then request again
   ScheduleRreqRetry (dst);
-  if (EnableHello)
-    {
-      if (!m_htimer.IsRunning ())
-        {
-          m_htimer.Cancel ();
-          m_htimer.Schedule (HelloInterval - Time (0.01 * MilliSeconds (m_uniformRandomVariable->GetInteger (0, 10))));
-        }
-    }
+
 }
 
 
 void
-RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
+RoutingProtocol::RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
 {
   NS_LOG_FUNCTION (this);
+  std::vector<Ipv4Address> ngbAvailNodes; //neighbor addresses having enough deposit
   RreqHeader rreqHeader;
   p->RemoveHeader (rreqHeader);
 
-  // A node ignores all RREQs received from any node in its blacklist
+  // A node ignores all RREQs received from any node in its blacklist 
   RoutingTableEntry toPrev;
   if (m_routingTable.LookupRoute (src, toPrev))
     {
@@ -449,12 +454,26 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
       return;
     }
 
+  // if requested amount of a transaction is over than available deposit, then discards rreq
+  //unicast to all possible neighbors
+    // transaction amount
+  uint32_t amount = rreqHeader.GetTransAmount ();
+
+  for(int i=0; i < m_nb.size(); i++)
+    {
+      Ipv4Address nbgAddr = GetNgbIPaddrByIndex(i);
+      if (amount <= m_nb.GetChMyAvailDeposit(nbgAddr))
+      {
+        ngbAvailNodes.push_back(nbgAddr);
+      }
+    }
+  
+
   // Increment RREQ hop count
   uint8_t hop = rreqHeader.GetHopCount () + 1;
   rreqHeader.SetHopCount (hop);
 
-  // transaction amount
-  uint32_t amount = rreqHeader.GetTransAmount ();
+
   /*
    *  When the reverse route is created or updated, the following actions on the route are also carried out:
    *  1. the Originator Sequence Number from the RREQ is compared to the corresponding destination sequence number
@@ -468,9 +487,9 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
   RoutingTableEntry toOrigin;
   if (!m_routingTable.LookupRoute (origin, toOrigin))
     {
-      RoutingTableEntry newEntry (/*dst=*/ origin, /*validSeno=*/ true, /*seqNo=*/ rreqHeader.GetOriginSeqno (),
-                                              /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0), /*hops=*/ hop,
-                                              /*transaction*/ amount, /*nextHop*/ src, /*timeLife=*/ Time ((2 * NetTraversalTime - 2 * hop * NodeTraversalTime)));
+      RoutingTableEntry newEntry (/*dst=*/ origin, /*validSeqNo=*/ true, /*seqNo=*/ rreqHeader.GetOriginSeqno (),
+                GetNodeAddress (), /*hop=*/ hop, /*transAmount=*/ amount,
+                /*nextHop=*/ src, /*lifeTime=*/ Time ((2 * NetTraversalTime - 2 * hop * NodeTraversalTime)) );                                           
       m_routingTable.AddRoute (newEntry);
     }
   else
@@ -495,7 +514,9 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
   NS_LOG_LOGIC (receiver << " receive RREQ with hop count " << static_cast<uint32_t>(rreqHeader.GetHopCount ()) 
                          << " ID " << rreqHeader.GetId ()
                          << " to destination " << rreqHeader.GetDst ()
-                         << " Transaction amount " << rreqHeader.GetTransAmount ());
+                         << " Transaction amount " << amount );
+
+
 
   //  A node generates a RREP if either:
   //  (i)  it is itself the destination,
@@ -573,6 +594,29 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
 	}
     }
 }
+
+void
+RoutingProtocol::SendRRep (RreqHeader const & rreqHeader, RoutingTableEntry const & toOrigin)
+{
+  NS_LOG_FUNCTION (this << toOrigin.GetDestination ());
+  /*
+   * Destination node MUST increment its own sequence number by one if the sequence number in the RREQ packet is equal to that
+   * incremented value. Otherwise, the destination does not change its sequence number before generating the  RREP message.
+   */
+  if (!rreqHeader.GetUnknownSeqno () && (rreqHeader.GetDstSeqno () == m_seqNo + 1))
+    m_seqNo++;
+  RrepHeader rrepHeader ( /*prefixSize=*/ 0, /*hops=*/ 0, /*dst=*/ rreqHeader.GetDst (),
+                                          /*dstSeqNo=*/ m_seqNo, /*origin=*/ toOrigin.GetDestination (), /*lifeTime=*/ MyRouteTimeout);
+  Ptr<Packet> packet = Create<Packet> ();
+  packet->AddHeader (rrepHeader);
+  TypeHeader tHeader (AODVTYPE_RREP);
+  packet->AddHeader (tHeader);
+  Ptr<Socket> socket = FindSocketWithInterfaceAddress (toOrigin.GetInterface ());
+  NS_ASSERT (socket);
+  socket->SendTo (packet, 0, InetSocketAddress (toOrigin.GetNextHop (), AODV_PORT));
+}
+
+
 
 
 

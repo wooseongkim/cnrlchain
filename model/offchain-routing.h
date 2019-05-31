@@ -23,7 +23,8 @@ class RoutingProtocol : public Ipv4RoutingProtocol
 {
 public:
   static TypeId GetTypeId (void);
-  static const uint32_t OFFCHAIN_PORT;
+  static const uint32_t OFFCHAIN_ROUTING_PORT;
+  static const uint32_t OFFCHAIN_HELLO_PORT;
 
   /// c-tor
   RoutingProtocol ();
@@ -62,7 +63,7 @@ public:
   bool GetBroadcastEnable () const { return EnableBroadcast; }
   void SetNeighborTable(Neighbors t) {m_nb =t; }
   //\}
-
+  Ipv4Address GetNodeAddress(void);
  /**
   * Assign a fixed random variable stream number to the random variables
   * used by this model.  Return the number of streams (possibly zero) that
@@ -117,6 +118,9 @@ private:
 
   /// IP protocol
   Ptr<Ipv4> m_ipv4;
+  //
+  Ptr<Socket> m_routingSocket;
+  Ptr<Socket> m_helloSocket;
   /// Raw socket per each IP interface, map socket -> iface address (IP + mask)
   std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketAddresses;
   /// Loopback device used to defer RREQ until packet will be fully formed
@@ -180,13 +184,10 @@ private:
   /// Receive and process control packet
   void RecvPaymentMsg (Ptr<Socket> socket);
   /// Receive RREQ
-  void RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src);
+  void RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src);
   /// Receive RREP
-  void RecvReply (Ptr<Packet> p, Ipv4Address my,Ipv4Address src);
-  /// Receive RREP_ACK
-  void RecvReplyAck (Ipv4Address neighbor);
-  /// Receive RERR from node with address src
-  void RecvError (Ptr<Packet> p, Ipv4Address src);
+  void RecvRRep (Ptr<Packet> p, Ipv4Address my,Ipv4Address src);
+
   //\}
 
   ///\name Send
@@ -196,7 +197,7 @@ private:
   /// Send hello
   void SendHello ();
   /// Send RREQ
-  void SendRequest (Ipv4Address dst);
+  void SendRReq (Ipv4Address dst, uint32_t amount);
   /// Send RREP
   void SendReply (RreqHeader const & rreqHeader, RoutingTableEntry const & toOrigin);
   /** Send RREP by intermediate node

@@ -52,7 +52,7 @@ TypeHeader::Deserialize (Buffer::Iterator start)
   m_valid = true;
   switch (type)
     {
-    case OFFCHAIN_TYPE_RREQ:
+    case OFFCHAIN_ROUTING_RREP:
     case OFFCHAIN_TYPE_RREP:
       {
         m_type = (MessageType) type;
@@ -71,7 +71,7 @@ TypeHeader::Print (std::ostream &os) const
 {
   switch (m_type)
     {
-    case OFFCHAIN_TYPE_RREQ:
+    case OFFCHAIN_ROUTING_RREP:
       {
         os << "RREQ";
         break;

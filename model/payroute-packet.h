@@ -14,17 +14,24 @@ namespace offchain {
 
 enum MessageType
 {
-
-  OFFCHAIN_TYPE_RREQ  = 1,  // request
-  OFFCHAIN_TYPE_RREP  = 2,  // response
+  OFFCHAIN_TYPE_RREQ  = 1,
+  OFFCHAIN_TYPE_RREP  = 2,
   OFFCHAIN_TYPE_HELLO = 3
+  OFFCHAIN_ROUTING_RREQ  = 1,
+  OFFCHAIN_ROUTING_RREP  = 2,
+  OFFCHAIN_ROUTING_HELLO = 3,
+  // PAYMENT
+  OFFCHAIN_PAYMENT_TRANS = 4,
+  OFFCHAIN_PAYMENT_DECKEY = 5,
+  OFFCHAIN_PAYMENT_ACK = 6,
+
 };
 
 class TypeHeader : public Header
 {
 public:
   /// c-tor
-  TypeHeader (MessageType t = OFFCHAIN_TYPE_RREQ);
+  TypeHeader (MessageType t = OFFCHAIN_ROUTING_RREP);
 
   ///\name Header serialization/deserialization
   //\{

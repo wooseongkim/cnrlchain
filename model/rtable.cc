@@ -16,7 +16,7 @@ namespace offchain
  */
 
 RoutingTableEntry::RoutingTableEntry (Ptr<NetDevice> dev, Ipv4Address dst, bool vSeqNo, uint32_t seqNo,
-                                      Ipv4InterfaceAddress iface, uint16_t hops, uint32_t transAmount, Ipv4Address nextHop, Time lifetime) :
+                                      Ipv4Address iface, uint16_t hops, uint32_t transAmount, Ipv4Address nextHop, Time lifetime) :
   m_ackTimer (Timer::CANCEL_ON_DESTROY),
   m_validSeqNo (vSeqNo), m_seqNo (seqNo), m_hops (hops), m_transAmount (transAmount),
   m_lifeTime (lifetime + Simulator::Now ()), m_iface (iface), m_flag (VALID),
@@ -25,7 +25,7 @@ RoutingTableEntry::RoutingTableEntry (Ptr<NetDevice> dev, Ipv4Address dst, bool 
   m_ipv4Route = Create<Ipv4Route> ();
   m_ipv4Route->SetDestination (dst);
   m_ipv4Route->SetGateway (nextHop);
-  m_ipv4Route->SetSource (m_iface.GetLocal ());
+  m_ipv4Route->SetSource (m_iface);
   m_ipv4Route->SetOutputDevice (dev);
 }
 
