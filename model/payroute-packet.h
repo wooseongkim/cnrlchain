@@ -118,9 +118,9 @@ class RrepHeader : public Header
 {
 public:
   /// c-tor
-  RrepHeader (uint8_t prefixSize = 0, uint8_t hopCount = 0, Ipv4Address dst =
+  RrepHeader (uint8_t hopCount = 0, Ipv4Address dst =
                 Ipv4Address (), uint32_t dstSeqNo = 0, Ipv4Address origin =
-                Ipv4Address (), Time lifetime = MilliSeconds (0));
+                Ipv4Address (), Time lifetime = MilliSeconds (0), uint32_t reward = 0);
   ///\name Header serialization/deserialization
   //\{
   static TypeId GetTypeId ();
@@ -152,8 +152,7 @@ public:
   //\{
   void SetAckRequired (bool f);
   bool GetAckRequired () const;
-  void SetPrefixSize (uint8_t sz);
-  uint8_t GetPrefixSize () const;
+
   //\}
 
   bool operator== (RrepHeader const & o) const;

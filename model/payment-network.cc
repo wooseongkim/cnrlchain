@@ -47,7 +47,11 @@ PaymentNetwork::PaymentNetwork ()
     m_initialRequestedContent = Ipv4Address("0.0.0.0");
     m_firstSuccess = false;
     m_ngbChTable = new Neighbors (1000, 100); //default deposit 100
+    m_routingProtocol = new PaymentRoutingProtocol();
+    m_routingProtocol.SetRecvRreqCB (MakeCallback (&PaymentRoutingProtocol::HandleTransRreq, this));
+    m_routingProtocol.SetRecvRrepCB (MakeCallback (&PaymentRoutingProtocol::HandleTransRrep, this));
 }
+
 
 
 PaymentNetwork::~PaymentNetwork()
@@ -179,6 +183,20 @@ PaymentNetwork::addNewRoute()
 
 }
 
+uint32_t 
+PaymentNetwork::HandleTransRreq (Ipv4Address orig, uint32_t amount)
+{
+    //may have to do something related to determine serving this transaction or not
+    return 0;
+}
+
+uint32_t 
+PaymentNetwork::HandleTransRrep (Ipv4Address orig, uint32_t amount)
+{
+    //must return reward here
+    return 0;
+}
+
 void
 PaymentNetwork::HandleOffchainMsg (Ptr<Socket> socket)
 {
@@ -193,20 +211,30 @@ PaymentNetwork::HandleOffchainMsg (Ptr<Socket> socket)
   //UpdateRouteToNeighbor (sender, receiver);
   TypeHeader tHeader (OFFCHAIN_ROUTING_RREP);
   packet->RemoveHeader (tHeader);
-
+  int resEv;
   switch (tHeader.Get ())
     {
-    case OFFCHAIN_ROUTING_RREP:
+    case OFFCHAIN_ROUTING_RREQ:
       {
-        m_routingProtocol->RecvRReq (packet, receiver, sender);
+        resEv = m_routingProtocol->RecvRReq (packet, receiver, sender);
+        if (resEv < 0)
+        {
+            NS_LOG_INFO("RREQ IS DUPLICATED OR EXISTING ROUTE");
+        }
+        else if (resEv == 1)
+        {
+            NS_LOG_INFO("RREQ IS FOR ME");
+            //
+            m_routingProtocol->
+        }
         break;
       }
-    case OFFCHAIN_TYPE_RREP:
+    case OFFCHAIN_ROUTING_RREP:
       {
         m_routingProtocol->RecvRRep (packet, receiver, sender);
         break;
       }
-    case OFFCHAIN_TYPE_HELLO:
+    case OFFCHAIN_ROUTING_HELLO:
       {
         m_routingProtocol->RecvHello (packet, receiver, sender);
         break;

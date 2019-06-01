@@ -20,10 +20,10 @@ namespace ns3
 {
 namespace offchain
 {
-NS_OBJECT_ENSURE_REGISTERED (RoutingProtocol);
+NS_OBJECT_ENSURE_REGISTERED (PaymentRoutingProtocol);
 
-const uint32_t RoutingProtocol::OFFCHAIN_ROUTING_PORT = 1200;
-const uint32_t RoutingProtocol::OFFCHAIN_HELLO_PORT = 1400;
+const uint32_t PaymentRoutingProtocol::OFFCHAIN_ROUTING_PORT = 1200;
+const uint32_t PaymentRoutingProtocol::OFFCHAIN_HELLO_PORT = 1400;
 
 
 
@@ -86,7 +86,7 @@ NS_OBJECT_ENSURE_REGISTERED (DeferredRouteOutputTag);
 
 
 //-----------------------------------------------------------------------------
-RoutingProtocol::RoutingProtocol () :
+PaymentRoutingProtocol::PaymentRoutingProtocol () :
   RreqRetries (2),
   RreqRateLimit (10),
   RerrRateLimit (10),
@@ -136,114 +136,113 @@ RoutingProtocol::RoutingProtocol () :
 
   if (EnableHello)
     {
-      m_nb.SetCallback (MakeCallback (&RoutingProtocol::ClosePaymentChannelToNextHop, this));
+      m_nb.SetCallback (MakeCallback (&PaymentRoutingProtocol::ClosePaymentChannelToNextHop, this));
     }
 }
 
 TypeId
-RoutingProtocol::GetTypeId (void)
+PaymentRoutingProtocol::GetTypeId (void)
 {
-  static TypeId tid = TypeId ("ns3::aodv::RoutingProtocol")
-    .SetParent<Ipv4RoutingProtocol> ()
-    .AddConstructor<RoutingProtocol> ()
+  static TypeId tid = TypeId ("ns3::offchain::PaymentRoutingProtocol")
+    .AddConstructor<PaymentRoutingProtocol> ()
     .AddAttribute ("HelloInterval", "HELLO messages emission interval.",
                    TimeValue (Seconds (1)),
-                   MakeTimeAccessor (&RoutingProtocol::HelloInterval),
+                   MakeTimeAccessor (&PaymentRoutingProtocol::HelloInterval),
                    MakeTimeChecker ())
     .AddAttribute ("RreqRetries", "Maximum number of retransmissions of RREQ to discover a route",
                    UintegerValue (2),
-                   MakeUintegerAccessor (&RoutingProtocol::RreqRetries),
+                   MakeUintegerAccessor (&PaymentRoutingProtocol::RreqRetries),
                    MakeUintegerChecker<uint32_t> ())
     .AddAttribute ("RreqRateLimit", "Maximum number of RREQ per second.",
                    UintegerValue (10),
-                   MakeUintegerAccessor (&RoutingProtocol::RreqRateLimit),
+                   MakeUintegerAccessor (&PaymentRoutingProtocol::RreqRateLimit),
                    MakeUintegerChecker<uint32_t> ())
     .AddAttribute ("RerrRateLimit", "Maximum number of RERR per second.",
                    UintegerValue (10),
-                   MakeUintegerAccessor (&RoutingProtocol::RerrRateLimit),
+                   MakeUintegerAccessor (&PaymentRoutingProtocol::RerrRateLimit),
                    MakeUintegerChecker<uint32_t> ())
     .AddAttribute ("NodeTraversalTime", "Conservative estimate of the average one hop traversal time for packets and should include "
                    "queuing delays, interrupt processing times and transfer times.",
                    TimeValue (MilliSeconds (40)),
-                   MakeTimeAccessor (&RoutingProtocol::NodeTraversalTime),
+                   MakeTimeAccessor (&PaymentRoutingProtocol::NodeTraversalTime),
                    MakeTimeChecker ())
     .AddAttribute ("NextHopWait", "Period of our waiting for the neighbour's RREP_ACK = 10 ms + NodeTraversalTime",
                    TimeValue (MilliSeconds (50)),
-                   MakeTimeAccessor (&RoutingProtocol::NextHopWait),
+                   MakeTimeAccessor (&PaymentRoutingProtocol::NextHopWait),
                    MakeTimeChecker ())
     .AddAttribute ("ActiveRouteTimeout", "Period of time during which the route is considered to be valid",
                    TimeValue (Seconds (3)),
-                   MakeTimeAccessor (&RoutingProtocol::ActiveRouteTimeout),
+                   MakeTimeAccessor (&PaymentRoutingProtocol::ActiveRouteTimeout),
                    MakeTimeChecker ())
     .AddAttribute ("MyRouteTimeout", "Value of lifetime field in RREP generating by this node = 2 * max(ActiveRouteTimeout, PathDiscoveryTime)",
                    TimeValue (Seconds (11.2)),
-                   MakeTimeAccessor (&RoutingProtocol::MyRouteTimeout),
+                   MakeTimeAccessor (&PaymentRoutingProtocol::MyRouteTimeout),
                    MakeTimeChecker ())
     .AddAttribute ("BlackListTimeout", "Time for which the node is put into the blacklist = RreqRetries * NetTraversalTime",
                    TimeValue (Seconds (5.6)),
-                   MakeTimeAccessor (&RoutingProtocol::BlackListTimeout),
+                   MakeTimeAccessor (&PaymentRoutingProtocol::BlackListTimeout),
                    MakeTimeChecker ())
     .AddAttribute ("DeletePeriod", "DeletePeriod is intended to provide an upper bound on the time for which an upstream node A "
                    "can have a neighbor B as an active next hop for destination D, while B has invalidated the route to D."
                    " = 5 * max (HelloInterval, ActiveRouteTimeout)",
                    TimeValue (Seconds (15)),
-                   MakeTimeAccessor (&RoutingProtocol::DeletePeriod),
+                   MakeTimeAccessor (&PaymentRoutingProtocol::DeletePeriod),
                    MakeTimeChecker ())
     .AddAttribute ("TimeoutBuffer", "Its purpose is to provide a buffer for the timeout so that if the RREP is delayed"
                    " due to congestion, a timeout is less likely to occur while the RREP is still en route back to the source.",
                    UintegerValue (2),
-                   MakeUintegerAccessor (&RoutingProtocol::TimeoutBuffer),
+                   MakeUintegerAccessor (&PaymentRoutingProtocol::TimeoutBuffer),
                    MakeUintegerChecker<uint16_t> ())
     .AddAttribute ("NetDiameter", "Net diameter measures the maximum possible number of hops between two nodes in the network",
                    UintegerValue (35),
-                   MakeUintegerAccessor (&RoutingProtocol::NetDiameter),
+                   MakeUintegerAccessor (&PaymentRoutingProtocol::NetDiameter),
                    MakeUintegerChecker<uint32_t> ())
     .AddAttribute ("NetTraversalTime", "Estimate of the average net traversal time = 2 * NodeTraversalTime * NetDiameter",
                    TimeValue (Seconds (2.8)),
-                   MakeTimeAccessor (&RoutingProtocol::NetTraversalTime),
+                   MakeTimeAccessor (&PaymentRoutingProtocol::NetTraversalTime),
                    MakeTimeChecker ())
     .AddAttribute ("PathDiscoveryTime", "Estimate of maximum time needed to find route in network = 2 * NetTraversalTime",
                    TimeValue (Seconds (5.6)),
-                   MakeTimeAccessor (&RoutingProtocol::PathDiscoveryTime),
+                   MakeTimeAccessor (&PaymentRoutingProtocol::PathDiscoveryTime),
                    MakeTimeChecker ())
     .AddAttribute ("MaxQueueLen", "Maximum number of packets that we allow a routing protocol to buffer.",
                    UintegerValue (64),
-                   MakeUintegerAccessor (&RoutingProtocol::SetMaxQueueLen,
-                                         &RoutingProtocol::GetMaxQueueLen),
+                   MakeUintegerAccessor (&PaymentRoutingProtocol::SetMaxQueueLen,
+                                         &PaymentRoutingProtocol::GetMaxQueueLen),
                    MakeUintegerChecker<uint32_t> ())
     .AddAttribute ("MaxQueueTime", "Maximum time packets can be queued (in seconds)",
                    TimeValue (Seconds (30)),
-                   MakeTimeAccessor (&RoutingProtocol::SetMaxQueueTime,
-                                     &RoutingProtocol::GetMaxQueueTime),
+                   MakeTimeAccessor (&PaymentRoutingProtocol::SetMaxQueueTime,
+                                     &PaymentRoutingProtocol::GetMaxQueueTime),
                    MakeTimeChecker ())
     .AddAttribute ("AllowedHelloLoss", "Number of hello messages which may be loss for valid link.",
                    UintegerValue (2),
-                   MakeUintegerAccessor (&RoutingProtocol::AllowedHelloLoss),
+                   MakeUintegerAccessor (&PaymentRoutingProtocol::AllowedHelloLoss),
                    MakeUintegerChecker<uint16_t> ())
     .AddAttribute ("GratuitousReply", "Indicates whether a gratuitous RREP should be unicast to the node originated route discovery.",
                    BooleanValue (true),
-                   MakeBooleanAccessor (&RoutingProtocol::SetGratuitousReplyFlag,
-                                        &RoutingProtocol::GetGratuitousReplyFlag),
+                   MakeBooleanAccessor (&PaymentRoutingProtocol::SetGratuitousReplyFlag,
+                                        &PaymentRoutingProtocol::GetGratuitousReplyFlag),
                    MakeBooleanChecker ())
     .AddAttribute ("DestinationOnly", "Indicates only the destination may respond to this RREQ.",
                    BooleanValue (false),
-                   MakeBooleanAccessor (&RoutingProtocol::SetDesinationOnlyFlag,
-                                        &RoutingProtocol::GetDesinationOnlyFlag),
+                   MakeBooleanAccessor (&PaymentRoutingProtocol::SetDesinationOnlyFlag,
+                                        &PaymentRoutingProtocol::GetDesinationOnlyFlag),
                    MakeBooleanChecker ())
     .AddAttribute ("EnableHello", "Indicates whether a hello messages enable.",
                    BooleanValue (true),
-                   MakeBooleanAccessor (&RoutingProtocol::SetHelloEnable,
-                                        &RoutingProtocol::GetHelloEnable),
+                   MakeBooleanAccessor (&PaymentRoutingProtocol::SetHelloEnable,
+                                        &PaymentRoutingProtocol::GetHelloEnable),
                    MakeBooleanChecker ())
     .AddAttribute ("EnableBroadcast", "Indicates whether a broadcast data packets forwarding enable.",
                    BooleanValue (true),
-                   MakeBooleanAccessor (&RoutingProtocol::SetBroadcastEnable,
-                                        &RoutingProtocol::GetBroadcastEnable),
+                   MakeBooleanAccessor (&PaymentRoutingProtocol::SetBroadcastEnable,
+                                        &PaymentRoutingProtocol::GetBroadcastEnable),
                    MakeBooleanChecker ())
     .AddAttribute ("UniformRv",
                    "Access to the underlying UniformRandomVariable",
                    StringValue ("ns3::UniformRandomVariable"),
-                   MakePointerAccessor (&RoutingProtocol::m_uniformRandomVariable),
+                   MakePointerAccessor (&PaymentRoutingProtocol::m_uniformRandomVariable),
                    MakePointerChecker<UniformRandomVariable> ())
   ;
   return tid;
@@ -251,14 +250,14 @@ RoutingProtocol::GetTypeId (void)
 
 
 void
-RoutingProtocol::ClosePaymentChannelToNextHop (Ipv4Address nextHop)
+PaymentRoutingProtocol::ClosePaymentChannelToNextHop (Ipv4Address nextHop)
 {
   NS_LOG_FUNCTION (this << nextHop);
   // record balance proof to the main chain
 }
 
 Ipv4Address
-RoutingProtocol::GetNodeAddress()
+PaymentRoutingProtocol::GetNodeAddress()
 {
     //Figure out the IP address of this current node
     Ptr<Node> node = GetNode();
@@ -270,7 +269,7 @@ RoutingProtocol::GetNodeAddress()
 
 //broadcast periodic hello
 void
-RoutingProtocol::SendHello ()
+PaymentRoutingProtocol::SendHello ()
 {
   NS_LOG_FUNCTION (this);
 
@@ -300,7 +299,7 @@ RoutingProtocol::SendHello ()
 
 // unicast hello for channel open 
 void
-RoutingProtocol::SendHello (Ipv4Address dst, bool acked)
+PaymentRoutingProtocol::SendHello (Ipv4Address dst, bool acked)
 {
   NS_LOG_FUNCTION (this);
   Ptr<Node> node = GetNode();
@@ -326,7 +325,7 @@ RoutingProtocol::SendHello (Ipv4Address dst, bool acked)
 
 // 3 hellos; 1) broadcast or others (awareness) 2) channel open req (unicast), 3) acked hello (answer for the case 2)
 void
-RoutingProtocol::RecvHello (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sender) 
+PaymentRoutingProtocol::RecvHello (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sender) 
 {
   NS_LOG_FUNCTION (this);
   HelloHeader helloHeader;
@@ -354,14 +353,14 @@ RoutingProtocol::RecvHello (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
 
 
 void
-RoutingProtocol::SendRReq (Ipv4Address dst, uint32_t transAmount)
+PaymentRoutingProtocol::SendRReq (Ipv4Address dst, uint32_t transAmount)
 {
   NS_LOG_FUNCTION ( this << dst);
   // A node SHOULD NOT originate more than RREQ_RATELIMIT RREQ messages per 100 second.
   if (m_rreqCount == RreqRateLimit)
     {
       Simulator::Schedule (m_rreqRateLimitTimer.GetDelayLeft () + Seconds (100),
-                           &RoutingProtocol::SendRequest, this, dst);
+                           &PaymentRoutingProtocol::SendRequest, this, dst);
       return;
     }
   else
@@ -420,8 +419,8 @@ RoutingProtocol::SendRReq (Ipv4Address dst, uint32_t transAmount)
 }
 
 
-void
-RoutingProtocol::RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
+int
+PaymentRoutingProtocol::RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
 {
   NS_LOG_FUNCTION (this);
   std::vector<Ipv4Address> ngbAvailNodes; //neighbor addresses having enough deposit
@@ -435,7 +434,7 @@ RoutingProtocol::RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
       if (toPrev.IsUnidirectional ())
         {
           NS_LOG_DEBUG ("Ignoring RREQ from node in blacklist");
-          return;
+          return -1;
         }
     }
 
@@ -449,7 +448,7 @@ RoutingProtocol::RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
   if (m_rreqIdCache.IsDuplicate (origin, id))
     {
       NS_LOG_DEBUG ("Ignoring RREQ due to duplicate");
-      return;
+      return -1;
     }
 
   // if requested amount of a transaction is over than available deposit, then discards rreq
@@ -521,9 +520,9 @@ RoutingProtocol::RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
   if (IsMyOwnAddress (rreqHeader.GetDst ()))
     {
       m_routingTable.LookupRoute (origin, toOrigin);
-      NS_LOG_DEBUG ("Send reply since I am the destination");
-      SendReply (rreqHeader, toOrigin);
-      return;
+      NS_LOG_DEBUG ("Send reply since I am the destination");      
+      SendRRep (rreqHeader, toOrigin, 0);
+      return 1;
     }
   /*
    * (ii) or it has an active route to the destination, the destination sequence number in the node's existing route table entry for the destination
@@ -539,7 +538,7 @@ RoutingProtocol::RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
       if (toDst.GetNextHop () == src)
         {
           NS_LOG_DEBUG ("Drop RREQ from " << src << ", dest next hop " << toDst.GetNextHop ());
-          return;
+          return -1;
         }
       /*
        * The Destination Sequence number for the requested destination is set to the maximum of the corresponding value
@@ -554,47 +553,77 @@ RoutingProtocol::RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
             {
               m_routingTable.LookupRoute (origin, toOrigin);
               SendReplyByIntermediateNode (toDst, toOrigin, rreqHeader.GetGratiousRrep ());
-              return;
+              return -1;
             }
           rreqHeader.SetDstSeqno (toDst.GetSeqNo ());
           rreqHeader.SetUnknownSeqno (false);
         }
     }
 
-  for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j =
-         m_socketAddresses.begin (); j != m_socketAddresses.end (); ++j)
-    {
-      Ptr<Socket> socket = j->first;
-      Ipv4InterfaceAddress iface = j->second;
-      Ptr<Packet> packet = Create<Packet> ();
-      packet->AddHeader (rreqHeader);
-      TypeHeader tHeader (AODVTYPE_RREQ);
-      packet->AddHeader (tHeader);
-      // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
-      Ipv4Address destination;
-      if (iface.GetMask () == Ipv4Mask::GetOnes ())
-        {
-          destination = Ipv4Address ("255.255.255.255");
-        }
-      else
-        { 
-          destination = iface.GetBroadcast ();
-        }
-      socket->SendTo (packet, 0, InetSocketAddress (destination, AODV_PORT));
-    }
+  for (std::vector<Ipv4Address>::const_iterator n = ngbAvailNodes.begin (); n
+      != ngbAvailNodes.end (); ++n)
+  {
+    Ptr<Packet> packet = Create<Packet> ();
+    packet->AddHeader (rreqHeader);
+    TypeHeader tHeader (OFFCHAIN_ROUTING_RREQ);
+    packet->AddHeader (tHeader);
+    m_routingSocket->SendTo (packet, 0, InetSocketAddress (n, OFFCHAIN_ROUTING_PORT));
+  } 
+  return 0;
 
-  if (EnableHello)
-    {
-      if (!m_htimer.IsRunning ())
-        {
-          m_htimer.Cancel ();
-          m_htimer.Schedule (HelloInterval - Time (0.1 * MilliSeconds (m_uniformRandomVariable->GetInteger (0, 10))));
-	}
-    }
 }
 
 void
-RoutingProtocol::SendRRep (RreqHeader const & rreqHeader, RoutingTableEntry const & toOrigin)
+PaymentRoutingProtocol::SendReplyByIntermediateNode (RoutingTableEntry & toDst, RoutingTableEntry & toOrigin, bool gratRep)
+{
+  NS_LOG_FUNCTION (this);
+  RrepHeader rrepHeader (/*prefix size=*/ 0, /*hops=*/ toDst.GetHop (), /*dst=*/ toDst.GetDestination (), /*dst seqno=*/ toDst.GetSeqNo (),
+                                          /*origin=*/ toOrigin.GetDestination (), /*lifetime=*/ toDst.GetLifeTime ());
+  /* If the node we received a RREQ for is a neighbor we are
+   * probably facing a unidirectional link... Better request a RREP-ack
+   */
+  if (toDst.GetHop () == 1)
+    {
+      rrepHeader.SetAckRequired (true);
+      RoutingTableEntry toNextHop;
+      m_routingTable.LookupRoute (toOrigin.GetNextHop (), toNextHop);
+      toNextHop.m_ackTimer.SetFunction (&PaymentRoutingProtocol::AckTimerExpire, this);
+      toNextHop.m_ackTimer.SetArguments (toNextHop.GetDestination (), BlackListTimeout);
+      toNextHop.m_ackTimer.SetDelay (NextHopWait);
+    }
+  toDst.InsertPrecursor (toOrigin.GetNextHop ());
+  toOrigin.InsertPrecursor (toDst.GetNextHop ());
+  m_routingTable.Update (toDst);
+  m_routingTable.Update (toOrigin);
+
+  Ptr<Packet> packet = Create<Packet> ();
+  packet->AddHeader (rrepHeader);
+  TypeHeader tHeader (AODVTYPE_RREP);
+  packet->AddHeader (tHeader);
+  Ptr<Socket> socket = FindSocketWithInterfaceAddress (toOrigin.GetInterface ());
+  NS_ASSERT (socket);
+  socket->SendTo (packet, 0, InetSocketAddress (toOrigin.GetNextHop (), AODV_PORT));
+
+  // Generating gratuitous RREPs
+  if (gratRep)
+    {
+      RrepHeader gratRepHeader (/*prefix size=*/ 0, /*hops=*/ toOrigin.GetHop (), /*dst=*/ toOrigin.GetDestination (),
+                                                 /*dst seqno=*/ toOrigin.GetSeqNo (), /*origin=*/ toDst.GetDestination (),
+                                                 /*lifetime=*/ toOrigin.GetLifeTime ());
+      Ptr<Packet> packetToDst = Create<Packet> ();
+      packetToDst->AddHeader (gratRepHeader);
+      TypeHeader type (OFFCHAIN_ROUTING_RREP);
+      packetToDst->AddHeader (type);
+      Ptr<Socket> socket = FindSocketWithInterfaceAddress (toDst.GetInterface ());
+      NS_ASSERT (socket);
+      NS_LOG_LOGIC ("Send gratuitous RREP " << packet->GetUid ());
+      socket->SendTo (packetToDst, 0, InetSocketAddress (toDst.GetNextHop (), OFFCHAIN_ROUTING_PORT));
+    }
+}
+
+
+void
+PaymentRoutingProtocol::SendRRep (RreqHeader const & rreqHeader, RoutingTableEntry const & toOrigin, uint32_t reward)
 {
   NS_LOG_FUNCTION (this << toOrigin.GetDestination ());
   /*
@@ -603,8 +632,132 @@ RoutingProtocol::SendRRep (RreqHeader const & rreqHeader, RoutingTableEntry cons
    */
   if (!rreqHeader.GetUnknownSeqno () && (rreqHeader.GetDstSeqno () == m_seqNo + 1))
     m_seqNo++;
-  RrepHeader rrepHeader ( /*prefixSize=*/ 0, /*hops=*/ 0, /*dst=*/ rreqHeader.GetDst (),
-                                          /*dstSeqNo=*/ m_seqNo, /*origin=*/ toOrigin.GetDestination (), /*lifeTime=*/ MyRouteTimeout);
+  RrepHeader rrepHeader ( /*hops=*/ 0, /*dst=*/ rreqHeader.GetDst (),
+                          /*dstSeqNo=*/ m_seqNo, /*origin=*/ toOrigin.GetDestination (), /*lifeTime=*/ MyRouteTimeout, reward);
+
+  Ptr<Packet> packet = Create<Packet> ();
+  packet->AddHeader (rrepHeader);
+  TypeHeader tHeader (OFFCHAIN_ROUTING_RREP);
+  packet->AddHeader (tHeader);
+  m_routingSocket->SendTo (packet, 0, InetSocketAddress (toOrigin.GetNextHop (), OFFCHAIN_ROUTING_PORT));
+}
+
+void
+PaymentRoutingProtocol::RecvRRep (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sender)
+{
+  NS_LOG_FUNCTION (this << " src " << sender);
+  RrepHeader rrepHeader;
+  p->RemoveHeader (rrepHeader);
+  Ipv4Address dst = rrepHeader.GetDst ();
+  NS_LOG_LOGIC ("RREP destination " << dst << " RREP origin " << rrepHeader.GetOrigin ());
+
+  uint8_t hop = rrepHeader.GetHopCount () + 1;
+  rrepHeader.SetHopCount (hop);
+
+  /*
+   * If the route table entry to the destination is created or updated, then the following actions occur:
+   * -  the route is marked as active,
+   * -  the destination sequence number is marked as valid,
+   * -  the next hop in the route entry is assigned to be the node from which the RREP is received,
+   *    which is indicated by the source IP address field in the IP header,
+   * -  the hop count is set to the value of the hop count from RREP message + 1
+   * -  the expiry time is set to the current time plus the value of the Lifetime in the RREP message,
+   * -  and the destination sequence number is the Destination Sequence Number in the RREP message.
+   */
+  Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver));
+  RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ dst, /*validSeqNo=*/ true, /*seqno=*/ rrepHeader.GetDstSeqno (),
+                                          /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0),/*hop=*/ hop,
+                                          /*nextHop=*/ sender, /*lifeTime=*/ rrepHeader.GetLifeTime ());
+
+  RoutingTableEntry newEntry (/*dst=*/ dst, /*validSeqNo=*/ true, /*seqNo=*/ rrepHeader.GetDstSeqno (),
+            GetNodeAddress (), /*hop=*/ hop, /*transAmount=*/ amount,
+            /*nextHop=*/ src, /*lifeTime=*/ Time ((2 * NetTraversalTime - 2 * hop * NodeTraversalTime)) ); 
+
+  RoutingTableEntry toDst;
+  if (m_routingTable.LookupRoute (dst, toDst))
+    {
+      /*
+       * The existing entry is updated only in the following circumstances:
+       * (i) the sequence number in the routing table is marked as invalid in route table entry.
+       */
+      if (!toDst.GetValidSeqNo ())
+        {
+          m_routingTable.Update (newEntry);
+        }
+      // (ii)the Destination Sequence Number in the RREP is greater than the node's copy of the destination sequence number and the known value is valid,
+      else if ((int32_t (rrepHeader.GetDstSeqno ()) - int32_t (toDst.GetSeqNo ())) > 0)
+        {
+          m_routingTable.Update (newEntry);
+        }
+      else
+        {
+          // (iii) the sequence numbers are the same, but the route is marked as inactive.
+          if ((rrepHeader.GetDstSeqno () == toDst.GetSeqNo ()) && (toDst.GetFlag () != VALID))
+            {
+              m_routingTable.Update (newEntry);
+            }
+          // (iv)  the sequence numbers are the same, and the New Hop Count is smaller than the hop count in route table entry.
+          else if ((rrepHeader.GetDstSeqno () == toDst.GetSeqNo ()) && (hop < toDst.GetHop ()))
+            {
+              m_routingTable.Update (newEntry);
+            }
+        }
+    }
+  else
+    {
+      // The forward route for this destination is created if it does not already exist.
+      NS_LOG_LOGIC ("add new route");
+      m_routingTable.AddRoute (newEntry);
+    }
+  // Acknowledge receipt of the RREP by sending a RREP-ACK message back
+  if (rrepHeader.GetAckRequired ())
+    {
+      SendReplyAck (sender);
+      rrepHeader.SetAckRequired (false);
+    }
+  NS_LOG_LOGIC ("receiver " << receiver << " origin " << rrepHeader.GetOrigin ());
+  if (IsMyOwnAddress (rrepHeader.GetOrigin ()))
+    {
+      if (toDst.GetFlag () == IN_SEARCH)
+        {
+          m_routingTable.Update (newEntry);
+          m_addressReqTimer[dst].Remove ();
+          m_addressReqTimer.erase (dst);
+        }
+      m_routingTable.LookupRoute (dst, toDst);
+      SendPacketFromQueue (dst, toDst.GetRoute ());
+      return;
+    }
+
+  RoutingTableEntry toOrigin;
+  if (!m_routingTable.LookupRoute (rrepHeader.GetOrigin (), toOrigin) || toOrigin.GetFlag () == IN_SEARCH)
+    {
+      return; // Impossible! drop.
+    }
+  toOrigin.SetLifeTime (std::max (ActiveRouteTimeout, toOrigin.GetLifeTime ()));
+  m_routingTable.Update (toOrigin);
+
+  // Update information about precursors
+  if (m_routingTable.LookupValidRoute (rrepHeader.GetDst (), toDst))
+    {
+      toDst.InsertPrecursor (toOrigin.GetNextHop ());
+      m_routingTable.Update (toDst);
+
+      RoutingTableEntry toNextHopToDst;
+      m_routingTable.LookupRoute (toDst.GetNextHop (), toNextHopToDst);
+      toNextHopToDst.InsertPrecursor (toOrigin.GetNextHop ());
+      m_routingTable.Update (toNextHopToDst);
+
+      toOrigin.InsertPrecursor (toDst.GetNextHop ());
+      m_routingTable.Update (toOrigin);
+
+      RoutingTableEntry toNextHopToOrigin;
+      m_routingTable.LookupRoute (toOrigin.GetNextHop (), toNextHopToOrigin);
+      toNextHopToOrigin.InsertPrecursor (toDst.GetNextHop ());
+      m_routingTable.Update (toNextHopToOrigin);
+    }
+
+int32_t m_handleRecvRREQ (origin, rreqHeader.GetTransAmount())
   Ptr<Packet> packet = Create<Packet> ();
   packet->AddHeader (rrepHeader);
   TypeHeader tHeader (AODVTYPE_RREP);
@@ -613,8 +766,6 @@ RoutingProtocol::SendRRep (RreqHeader const & rreqHeader, RoutingTableEntry cons
   NS_ASSERT (socket);
   socket->SendTo (packet, 0, InetSocketAddress (toOrigin.GetNextHop (), AODV_PORT));
 }
-
-
 
 
 

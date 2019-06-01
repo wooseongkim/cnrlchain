@@ -242,9 +242,9 @@ RreqHeader::operator== (RreqHeader const & o) const
 // RREP
 //-----------------------------------------------------------------------------
 
-RrepHeader::RrepHeader (uint8_t prefixSize, uint8_t hopCount, Ipv4Address dst,
+RrepHeader::RrepHeader (uint8_t hopCount, Ipv4Address dst,
                         uint32_t dstSeqNo, Ipv4Address origin, Time lifeTime, uint32_t reward) :
-  m_flags (0), m_prefixSize (prefixSize), m_hopCount (hopCount),
+  m_flags (0), m_hopCount (hopCount),
   m_dst (dst), m_dstSeqNo (dstSeqNo), m_origin (origin), m_accRewards(reward)
 {
   m_lifeTime = uint32_t (lifeTime.GetMilliSeconds ());
@@ -346,22 +346,12 @@ RrepHeader::GetAckRequired () const
   return (m_flags & (1 << 6));
 }
 
-void
-RrepHeader::SetPrefixSize (uint8_t sz)
-{
-  m_prefixSize = sz;
-}
 
-uint8_t
-RrepHeader::GetPrefixSize () const
-{
-  return m_prefixSize;
-}
 
 bool
 RrepHeader::operator== (RrepHeader const & o) const
 {
-  return (m_flags == o.m_flags && m_prefixSize == o.m_prefixSize &&
+  return (m_flags == o.m_flags &&
           m_hopCount == o.m_hopCount && m_dst == o.m_dst && m_dstSeqNo == o.m_dstSeqNo &&
           m_origin == o.m_origin && m_lifeTime == o.m_lifeTime && m_accRewards == o.m_accRewards);
 }

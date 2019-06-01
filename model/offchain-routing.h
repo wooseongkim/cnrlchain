@@ -19,7 +19,7 @@ namespace ns3
 namespace offchain
 {
 
-class RoutingProtocol : public Ipv4RoutingProtocol
+class PaymentPayment
 {
 public:
   static TypeId GetTypeId (void);
@@ -27,23 +27,10 @@ public:
   static const uint32_t OFFCHAIN_HELLO_PORT;
 
   /// c-tor
-  RoutingProtocol ();
-  virtual ~RoutingProtocol();
+  PaymentRoutingProtocol ();
+  virtual ~PaymentRoutingProtocol();
   virtual void DoDispose ();
 
-  ///\name From Ipv4RoutingProtocol
-  //\{
-  Ptr<Ipv4Route> RouteOutput (Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif, Socket::SocketErrno &sockerr);
-  bool RouteInput (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev,
-                   UnicastForwardCallback ucb, MulticastForwardCallback mcb,
-                   LocalDeliverCallback lcb, ErrorCallback ecb);
-  virtual void NotifyInterfaceUp (uint32_t interface);
-  virtual void NotifyInterfaceDown (uint32_t interface);
-  virtual void NotifyAddAddress (uint32_t interface, Ipv4InterfaceAddress address);
-  virtual void NotifyRemoveAddress (uint32_t interface, Ipv4InterfaceAddress address);
-  virtual void SetIpv4 (Ptr<Ipv4> ipv4);
-  virtual void PrintRoutingTable (Ptr<OutputStreamWrapper> stream) const;
-  //\}
 
   ///\name Handle protocol parameters
   //\{
@@ -71,7 +58,10 @@ public:
   * \return the number of stream indices assigned by this model
   */
   int64_t AssignStreams (int64_t stream);
-
+  //set CALLBACK 
+  void SetRecvRreqCB (Callback<uint32_t, Ipv4Address, uint32_t> cb) { m_handleRecvRREQ = cb; }
+  void SetRecvRrepCB (Callback<uint32_t, Ipv4Address, uint32_t> cb) { m_handleRecvRREP = cb; }
+  
 private:
   ///\name Protocol parameters.
   //\{
@@ -137,11 +127,14 @@ private:
   /// Handle duplicated broadcast/multicast packets
   DuplicatePacketDetection m_dpd;
   /// Handle neighbors payment channel
-  Neighbors m_nb;
+  Ptr<Neighbors> m_nb;
   /// Number of RREQs used for RREQ rate control
   uint16_t m_rreqCount;
   /// Number of RERRs used for RERR rate control
   uint16_t m_rerrCount;
+  // send rrep
+  Callback<uint32_t, Ipv4Address, uint32_t> m_handleRecvRREQ;
+  Callback<uint32_t, Ipv4Address, uint32_t> m_handleRecvRREP;
 
 private:
   /// Start protocol operation
@@ -197,7 +190,7 @@ private:
   /// Send RREQ
   void SendRReq (Ipv4Address dst, uint32_t amount);
   /// Send RREP
-  void SendReply (RreqHeader const & rreqHeader, RoutingTableEntry const & toOrigin);
+  void SendRRep (RreqHeader const & rreqHeader, RoutingTableEntry const & toOrigin, uint32_t reward);
   /** Send RREP by intermediate node
    * \param toDst routing table entry to destination
    * \param toOrigin routing table entry to originator

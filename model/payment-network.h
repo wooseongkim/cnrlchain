@@ -96,6 +96,9 @@ private:
     void HandleDigest(PktHeader *header);
     void HandleInterestUnknownContentProvider(PktHeader *header);
     void HandleInterestKnownContentProvider(PktHeader *header);
+
+    uint32_t HandleTransRreq (Ipv4Address orig, uint32_t amount);
+    uint32_t HandleTransRrep (Ipv4Address orig, uint32_t amount);
     
     PktHeader *CreateDataPacketHeader(Ipv4Address requester,
                 Ipv4Address destination, uint32_t broadcastId, Ipv4Address requestedContent);
@@ -148,9 +151,9 @@ private:
     
     
     bool m_firstSuccess; //for accounting purpose
-    Ptr<offchain::RoutingProtocol> m_routingProtocol;
+    Ptr<offchain::PaymentRoutingProtocol> m_routingProtocol;
       /// Handle neighbors payment channel
-    Neighbors m_ngbChTable;
+    Ptr<offchain::Neighbors> m_ngbChTable;
     
 };
 
