@@ -61,7 +61,7 @@ public:
   //set CALLBACK 
   void SetRecvRreqCB (Callback<uint32_t, Ipv4Address, uint32_t> cb) { m_handleRecvRREQ = cb; }
   void SetRecvRrepCB (Callback<uint32_t, Ipv4Address, uint32_t> cb) { m_handleRecvRREP = cb; }
-  
+
 private:
   ///\name Protocol parameters.
   //\{
@@ -172,19 +172,16 @@ private:
 
   ///\name Receive control packets
   //\{
-  /// Receive and process control packet
-  void RecvPaymentMsg (Ptr<Socket> socket);
+
   /// Receive RREQ
-  void RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src);
+  int RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src);
   /// Receive RREP
-  void RecvRRep (Ptr<Packet> p, Ipv4Address my,Ipv4Address src);
+  int RecvRRep (Ptr<Packet> p, Ipv4Address my,Ipv4Address src);
 
   //\}
 
   ///\name Send
   //\{
-  /// Forward packet from route request queue
-  void SendPacketFromQueue (Ipv4Address dst, Ptr<Ipv4Route> route);
   /// Send hello
   void SendHello ();
   /// Send RREQ

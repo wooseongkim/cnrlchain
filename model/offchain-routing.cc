@@ -546,18 +546,21 @@ PaymentRoutingProtocol::RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Addre
        * However, the forwarding node MUST NOT modify its maintained value for the destination sequence number, even if the value
        * received in the incoming RREQ is larger than the value currently maintained by the forwarding node.
        */
+      //wk: reply by intermediate nodes is consider later when the absolute deposit amount is guaranteed
+      #if 0
       if ((rreqHeader.GetUnknownSeqno () || (int32_t (toDst.GetSeqNo ()) - int32_t (rreqHeader.GetDstSeqno ()) >= 0))
           && toDst.GetValidSeqNo () )
         {
           if (!rreqHeader.GetDestinationOnly () && toDst.GetFlag () == VALID)
             {
-              m_routingTable.LookupRoute (origin, toOrigin);
+              m_routingTable.LookupRoute (origin, toOrigin);              
               SendReplyByIntermediateNode (toDst, toOrigin, rreqHeader.GetGratiousRrep ());
               return -1;
             }
           rreqHeader.SetDstSeqno (toDst.GetSeqNo ());
           rreqHeader.SetUnknownSeqno (false);
         }
+        #endif
     }
 
   for (std::vector<Ipv4Address>::const_iterator n = ngbAvailNodes.begin (); n
@@ -573,6 +576,7 @@ PaymentRoutingProtocol::RecvRReq (Ptr<Packet> p, Ipv4Address receiver, Ipv4Addre
 
 }
 
+//wk: leave below function for future work
 void
 PaymentRoutingProtocol::SendReplyByIntermediateNode (RoutingTableEntry & toDst, RoutingTableEntry & toOrigin, bool gratRep)
 {
@@ -598,11 +602,9 @@ PaymentRoutingProtocol::SendReplyByIntermediateNode (RoutingTableEntry & toDst, 
 
   Ptr<Packet> packet = Create<Packet> ();
   packet->AddHeader (rrepHeader);
-  TypeHeader tHeader (AODVTYPE_RREP);
+  TypeHeader tHeader (OFFCHAIN_ROUTING_RREP);
   packet->AddHeader (tHeader);
-  Ptr<Socket> socket = FindSocketWithInterfaceAddress (toOrigin.GetInterface ());
-  NS_ASSERT (socket);
-  socket->SendTo (packet, 0, InetSocketAddress (toOrigin.GetNextHop (), AODV_PORT));
+  m_routingSocket->SendTo (packet, 0, InetSocketAddress (toOrigin.GetNextHop (), OFFCHAIN_ROUTING_PORT));
 
   // Generating gratuitous RREPs
   if (gratRep)
@@ -614,10 +616,8 @@ PaymentRoutingProtocol::SendReplyByIntermediateNode (RoutingTableEntry & toDst, 
       packetToDst->AddHeader (gratRepHeader);
       TypeHeader type (OFFCHAIN_ROUTING_RREP);
       packetToDst->AddHeader (type);
-      Ptr<Socket> socket = FindSocketWithInterfaceAddress (toDst.GetInterface ());
-      NS_ASSERT (socket);
       NS_LOG_LOGIC ("Send gratuitous RREP " << packet->GetUid ());
-      socket->SendTo (packetToDst, 0, InetSocketAddress (toDst.GetNextHop (), OFFCHAIN_ROUTING_PORT));
+      m_routingSocket->SendTo (packetToDst, 0, InetSocketAddress (toDst.GetNextHop (), OFFCHAIN_ROUTING_PORT));
     }
 }
 
@@ -642,7 +642,7 @@ PaymentRoutingProtocol::SendRRep (RreqHeader const & rreqHeader, RoutingTableEnt
   m_routingSocket->SendTo (packet, 0, InetSocketAddress (toOrigin.GetNextHop (), OFFCHAIN_ROUTING_PORT));
 }
 
-void
+int
 PaymentRoutingProtocol::RecvRRep (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sender)
 {
   NS_LOG_FUNCTION (this << " src " << sender);
@@ -664,14 +664,10 @@ PaymentRoutingProtocol::RecvRRep (Ptr<Packet> p, Ipv4Address receiver, Ipv4Addre
    * -  the expiry time is set to the current time plus the value of the Lifetime in the RREP message,
    * -  and the destination sequence number is the Destination Sequence Number in the RREP message.
    */
-  Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver));
-  RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ dst, /*validSeqNo=*/ true, /*seqno=*/ rrepHeader.GetDstSeqno (),
-                                          /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0),/*hop=*/ hop,
-                                          /*nextHop=*/ sender, /*lifeTime=*/ rrepHeader.GetLifeTime ());
 
   RoutingTableEntry newEntry (/*dst=*/ dst, /*validSeqNo=*/ true, /*seqNo=*/ rrepHeader.GetDstSeqno (),
             GetNodeAddress (), /*hop=*/ hop, /*transAmount=*/ amount,
-            /*nextHop=*/ src, /*lifeTime=*/ Time ((2 * NetTraversalTime - 2 * hop * NodeTraversalTime)) ); 
+            /*nextHop=*/ sender, /*lifeTime=*/ rrepHeader.GetLifeTime () ); 
 
   RoutingTableEntry toDst;
   if (m_routingTable.LookupRoute (dst, toDst))
@@ -710,6 +706,7 @@ PaymentRoutingProtocol::RecvRRep (Ptr<Packet> p, Ipv4Address receiver, Ipv4Addre
       m_routingTable.AddRoute (newEntry);
     }
   // Acknowledge receipt of the RREP by sending a RREP-ACK message back
+  // tbd
   if (rrepHeader.GetAckRequired ())
     {
       SendReplyAck (sender);
@@ -724,15 +721,13 @@ PaymentRoutingProtocol::RecvRRep (Ptr<Packet> p, Ipv4Address receiver, Ipv4Addre
           m_addressReqTimer[dst].Remove ();
           m_addressReqTimer.erase (dst);
         }
-      m_routingTable.LookupRoute (dst, toDst);
-      SendPacketFromQueue (dst, toDst.GetRoute ());
-      return;
+      return 1;
     }
 
   RoutingTableEntry toOrigin;
   if (!m_routingTable.LookupRoute (rrepHeader.GetOrigin (), toOrigin) || toOrigin.GetFlag () == IN_SEARCH)
     {
-      return; // Impossible! drop.
+      return -1; // Impossible! drop.
     }
   toOrigin.SetLifeTime (std::max (ActiveRouteTimeout, toOrigin.GetLifeTime ()));
   m_routingTable.Update (toOrigin);
@@ -757,14 +752,16 @@ PaymentRoutingProtocol::RecvRRep (Ptr<Packet> p, Ipv4Address receiver, Ipv4Addre
       m_routingTable.Update (toNextHopToOrigin);
     }
 
-int32_t m_handleRecvRREQ (origin, rreqHeader.GetTransAmount())
+  int32_t myReward =  m_handleRecvRREP (origin, rrepHeader.GetTransAmount());
+  int32_t accReward =   rrepHeader.GetAccRewards ();
+
+  rrepHeader.SetAccRewards(myReward+accReward);
   Ptr<Packet> packet = Create<Packet> ();
   packet->AddHeader (rrepHeader);
-  TypeHeader tHeader (AODVTYPE_RREP);
+  TypeHeader tHeader (OFFCHAIN_ROUTING_RREP);
   packet->AddHeader (tHeader);
-  Ptr<Socket> socket = FindSocketWithInterfaceAddress (toOrigin.GetInterface ());
-  NS_ASSERT (socket);
-  socket->SendTo (packet, 0, InetSocketAddress (toOrigin.GetNextHop (), AODV_PORT));
+  m_routingSocket->SendTo (packet, 0, InetSocketAddress (toOrigin.GetNextHop (), OFFCHAIN_ROUTING_PORT));
+  return 0;
 }
 
 

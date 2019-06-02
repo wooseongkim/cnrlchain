@@ -224,14 +224,22 @@ PaymentNetwork::HandleOffchainMsg (Ptr<Socket> socket)
         else if (resEv == 1)
         {
             NS_LOG_INFO("RREQ IS FOR ME");
-            //
-            m_routingProtocol->
+            //wk: do we have to do something when a receiver receives rreq?
         }
         break;
       }
     case OFFCHAIN_ROUTING_RREP:
       {
-        m_routingProtocol->RecvRRep (packet, receiver, sender);
+        resEv = m_routingProtocol->RecvRRep (packet, receiver, sender);
+        if (resEv < 0)
+        {
+            NS_LOG_INFO("RREQ IS DUPLICATED OR EXISTING ROUTE");
+        }
+        else if (resEv == 1)
+        {
+            NS_LOG_INFO("RREP IS FOR ME");
+            //wk: here we have to put a routine to start payment
+        }
         break;
       }
     case OFFCHAIN_ROUTING_HELLO:
@@ -355,29 +363,6 @@ PaymentNetwork::CreateInterestPacketHeaderKnownContentProvider(Ipv4Address reque
     header->SetInterestBroadcastId(broadcastId);
     header->SetPacketType(InterestUnknownContentProvider);
     header->SetContentProviderId(contentProvider);
-    
-    return header;
-}
-
-
-PktHeader *
-PaymentNetwork::CreateHelloPacketHeader()
-{
-    PktHeader *header = new PktHeader();
-    
-    //Set address of social tie table in packet header
-    //which allows its encounter to merge this table.
-    header->SetPaymentTieTable( (uint32_t *)(m_relationship->GetPaymentTableAddress()) );
-    header->SetPaymentTieTableSize(m_relationship->GetPaymentTableSize());
-    
-    //Set packet type in packet header
-    header->SetPacketType(HELLO);
-    
-    //Set destination in packet header
-    header->SetDestination(Ipv4Address("255.255.255.255"));
-
-    //Set source in packet header
-    header->SetSource(GetNodeAddress());
     
     return header;
 }
@@ -549,46 +534,6 @@ PaymentNetwork::HandleDigest(PktHeader *header)
     }
 }
 
-
-void
-PaymentNetwork::HandleHello(PktHeader *header)
-{
-    /*
-        Accessible information from header (HELLO) include:
-            - source
-            - destination (which is this node address)
-            - packet type
-            - social tie table
-            - social tie table size
-            
-        Please see function: CreateHelloPacketHeader
-    */
-    
-    NS_LOG_INFO("Inside HandleHello");
-    Ipv4Address encounterNode = header->GetSource();
-
-    PaymentTableEntry *socialTieTableEntry = (PaymentTableEntry *) (header->GetPaymentTieTable());
-    uint32_t socialTieTableSize = header->GetPaymentTieTableSize();
-    m_relationship->UpdateAndMergePaymentTable(encounterNode,
-                                           Simulator::Now(),
-                                           socialTieTableEntry,
-                                           socialTieTableSize);
-                                           
-    DecideWhetherToSendContentNameDigest(header);
-    
-    ///////////////////// Send out pending response if any conidition matches ///////////////////////
-    
-    // 1) Take care of m_pending_data
-    ProcessPendingData(header);
-    
-    // 2) Take care of m_pending_interest_known_content_provider
-    // These are pending interests that already know which node is a content provider.
-    ProcessPendingInterestKnownContentProvider(header);
-    
-    // 3) Take care of m_pending_interest_unknown_content_provider
-    // These are pending interests that do not know which node owns the requested content.
-    ProcessPendingInterestUnknownContentProvider(header);
-}
 
 void
 PaymentNetwork::DecideWhetherToSendContentNameDigest(PktHeader *header)
@@ -966,118 +911,6 @@ PaymentNetwork::HandleInterestKnownContentProvider(PktHeader *header)
         // InterestEntry exists meaning I already saw it before.
         // That means I already served DATA packet for that interest before, or
         // I already saved it to the pending interest list with known content provider.
-    }
-}
-
-
-void
-PaymentNetwork::HandleInterestUnknownContentProvider(PktHeader *header)
-{
-    /*
-        Accessible information from header (InterestUnknownContentProvider) include:
-            - source
-            - destination (which is this node address)
-            - requester
-            - broadcastid
-            - requested content
-            - packet type
-
-        Please see function: CreateInterestPacketHeaderUnknownContentProvider
-    */
-
-    /*
-    Algorithm:
-        If not see this Interest before:
-            Insert the Interest into my InterestManager
-            If I have the content:
-                If encounter node is the requester:
-                    send DATA packet to encounter node
-                Else:
-                    Turn into DATA social-tie routing by saving
-                    (requester, broadcast_id, requestedContent) into m_pending_data
-            Else: //I do not have the content
-                If my table tells me some node has the content:
-                    Turn into InterestKnownContentProvider social-tie routing by saving
-                    (requester, broadcastId, requestedContent, contentProvider) into m_pending_interest_known_content_provider
-                Else: //I do not know who has the content
-                    Turn into InterestUnknownContentProvider social-level routing by saving
-                    (requesterId, broadcastId, requestedContent) into m_pending_interest_unknown_content_provider
-    */
-    
-    NS_LOG_INFO("Inside HandleInterestUnknownContentProvider");
-    
-    Ipv4Address currentNode = GetNodeAddress();
-    Ipv4Address encounterNode = header->GetSource();
-    
-    if ( !currentNode.IsEqual(header->GetDestination()) )
-    {
-        //I am not the node this Interest packet is destined to
-        return;
-    }
-
-    Ipv4Address requester = header->GetRequesterId();    
-    Ipv4Address requestedContent = header->GetRequestedContent();
-    uint32_t broadcastId = header->GetInterestBroadcastId();
-    NS_LOG_INFO("Interest packet - requester: "<<requester);
-    NS_LOG_INFO("Interest packet - requestedContent: "<<requestedContent);
-    NS_LOG_INFO("Interest packet - broadcastId: "<<broadcastId);
-
-    InterestEntry interestEntry(requester, broadcastId, requestedContent);
-    
-    if (! (m_interestManager->Exist(interestEntry)) )
-    {
-        // First time sees this Interest packet
-        m_interestManager->Insert(interestEntry);
-    
-        if (currentNode.IsEqual(requestedContent)) //I am the content provider
-        {
-            if (encounterNode.IsEqual(requester))
-            {
-                // Unitcast DATA packet to encounter
-                PktHeader *header = CreateDataPacketHeader(requester, encounterNode, broadcastId, requestedContent);
-                SendPacket(*header);
-                NS_LOG_INFO("Send DATA packet with content ("<< requestedContent <<") to "<<encounterNode);
-            }
-            else
-            {
-                PendingDataEntry entry;
-                entry.requester = requester;
-                entry.broadcastId = broadcastId;
-                entry.requestedContent = requestedContent;
-                m_pending_data->push_back(entry);
-                NS_LOG_INFO("Save pending DATA entry into m_pending_data");
-            }
-        }
-        else // I do not have the content
-        {
-            if (m_contentManager->Exist(requestedContent)) //I know which node has the content 
-                                                           //content owner is the requested content.
-            {
-                PendingInterestEntryKnownContentProvider entry;
-                entry.requester = requester;
-                entry.broadcastId = broadcastId;
-                entry.requestedContent = requestedContent;
-                entry.contentProvider = requestedContent;
-                m_pending_interest_known_content_provider->push_back(entry);
-                NS_LOG_INFO("Save pending InterestKnownContentProvider entry into m_pending_interest_known_content_provider");
-            }
-            else // I do not know who has the content
-            {
-                PendingInterestEntryUnknownContentProvider entry;
-                entry.requester = requester;
-                entry.broadcastId = broadcastId;
-                entry.requestedContent = requestedContent;
-                m_pending_interest_unknown_content_provider->push_back(entry);
-                NS_LOG_INFO("Save pending InterestUnknownContentProvider entry into m_pending_interest_unknown_content_provider");
-            }
-        }
-    }
-    else
-    {
-        // Need not to do anything here because:
-        // InterestEntry exists meaning I already saw it before.
-        // That means I already served DATA packet for that interest before, or
-        // I already saved it to the pending interest list with known/unknown content provider.
     }
 }
     
