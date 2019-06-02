@@ -102,23 +102,16 @@ PaymentRoutingProtocol::PaymentRoutingProtocol () :
   NextHopWait (NodeTraversalTime + MilliSeconds (10)),
   TimeoutBuffer (2),
   BlackListTimeout (Time (RreqRetries * NetTraversalTime)),
-  MaxQueueLen (64),
-  MaxQueueTime (Seconds (30)),
   DestinationOnly (false),
   GratuitousReply (true),
   EnableHello (true),
   m_routingTable (DeletePeriod),
-  m_queue (MaxQueueLen, MaxQueueTime),
   m_requestId (0),
   m_seqNo (0),
   m_rreqIdCache (PathDiscoveryTime),
   m_dpd (PathDiscoveryTime),
-  m_nb (HelloInterval),
   m_rreqCount (0),
-  m_rerrCount (0),
-  m_htimer (Timer::CANCEL_ON_DESTROY),
-  m_rreqRateLimitTimer (Timer::CANCEL_ON_DESTROY),
-  m_rerrRateLimitTimer (Timer::CANCEL_ON_DESTROY)
+  m_rerrCount (0)
 {
     //listen broadcast packets
     TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
@@ -145,10 +138,6 @@ PaymentRoutingProtocol::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::offchain::PaymentRoutingProtocol")
     .AddConstructor<PaymentRoutingProtocol> ()
-    .AddAttribute ("HelloInterval", "HELLO messages emission interval.",
-                   TimeValue (Seconds (1)),
-                   MakeTimeAccessor (&PaymentRoutingProtocol::HelloInterval),
-                   MakeTimeChecker ())
     .AddAttribute ("RreqRetries", "Maximum number of retransmissions of RREQ to discover a route",
                    UintegerValue (2),
                    MakeUintegerAccessor (&PaymentRoutingProtocol::RreqRetries),
@@ -205,16 +194,6 @@ PaymentRoutingProtocol::GetTypeId (void)
                    TimeValue (Seconds (5.6)),
                    MakeTimeAccessor (&PaymentRoutingProtocol::PathDiscoveryTime),
                    MakeTimeChecker ())
-    .AddAttribute ("MaxQueueLen", "Maximum number of packets that we allow a routing protocol to buffer.",
-                   UintegerValue (64),
-                   MakeUintegerAccessor (&PaymentRoutingProtocol::SetMaxQueueLen,
-                                         &PaymentRoutingProtocol::GetMaxQueueLen),
-                   MakeUintegerChecker<uint32_t> ())
-    .AddAttribute ("MaxQueueTime", "Maximum time packets can be queued (in seconds)",
-                   TimeValue (Seconds (30)),
-                   MakeTimeAccessor (&PaymentRoutingProtocol::SetMaxQueueTime,
-                                     &PaymentRoutingProtocol::GetMaxQueueTime),
-                   MakeTimeChecker ())
     .AddAttribute ("AllowedHelloLoss", "Number of hello messages which may be loss for valid link.",
                    UintegerValue (2),
                    MakeUintegerAccessor (&PaymentRoutingProtocol::AllowedHelloLoss),
@@ -248,6 +227,16 @@ PaymentRoutingProtocol::GetTypeId (void)
   return tid;
 }
 
+bool
+PaymentRoutingProtocol::IsMyOwnAddress (Ipv4Address src)
+{
+  NS_LOG_FUNCTION (this << src);
+  if (src == GetNodeAddress()
+    {
+      return true;
+    }
+  return false;
+}
 
 void
 PaymentRoutingProtocol::ClosePaymentChannelToNextHop (Ipv4Address nextHop)
@@ -357,14 +346,7 @@ PaymentRoutingProtocol::SendRReq (Ipv4Address dst, uint32_t transAmount)
 {
   NS_LOG_FUNCTION ( this << dst);
   // A node SHOULD NOT originate more than RREQ_RATELIMIT RREQ messages per 100 second.
-  if (m_rreqCount == RreqRateLimit)
-    {
-      Simulator::Schedule (m_rreqRateLimitTimer.GetDelayLeft () + Seconds (100),
-                           &PaymentRoutingProtocol::SendRequest, this, dst);
-      return;
-    }
-  else
-    m_rreqCount++;
+  m_rreqCount++;
   // Create RREQ header
   RreqHeader rreqHeader;
   rreqHeader.SetDst (dst);
@@ -762,6 +744,33 @@ PaymentRoutingProtocol::RecvRRep (Ptr<Packet> p, Ipv4Address receiver, Ipv4Addre
   packet->AddHeader (tHeader);
   m_routingSocket->SendTo (packet, 0, InetSocketAddress (toOrigin.GetNextHop (), OFFCHAIN_ROUTING_PORT));
   return 0;
+}
+
+void
+PaymentRoutingProtocol::SendReplyAck (Ipv4Address neighbor)
+{
+  NS_LOG_FUNCTION (this << " to " << neighbor);
+  RrepAckHeader h;
+  TypeHeader typeHeader (OFFCHAIN_ROUTING_ACK);
+  Ptr<Packet> packet = Create<Packet> ();
+  packet->AddHeader (h);
+  packet->AddHeader (typeHeader);
+  RoutingTableEntry toNeighbor;
+  m_routingTable.LookupRoute (neighbor, toNeighbor);
+  m_routingSocket->SendTo (packet, 0, InetSocketAddress (neighbor, OFFCHAIN_ROUTING_PORT));
+}
+
+void
+PaymentRoutingProtocol::RecvReplyAck (Ipv4Address neighbor)
+{
+  NS_LOG_FUNCTION (this);
+  RoutingTableEntry rt;
+  if(m_routingTable.LookupRoute (neighbor, rt))
+    {
+      rt.m_ackTimer.Cancel ();
+      rt.SetFlag (VALID);
+      m_routingTable.Update (rt);
+    }
 }
 
 
