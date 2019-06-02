@@ -188,6 +188,8 @@ public:
    * \return true on success
    */
   bool LookupRoute (Ipv4Address dst, RoutingTableEntry & rt);
+  // lookup next hop by destination address
+  Ipv4Address LookupNeigbhorInRoute(Ipv4Address id);
   /// Lookup route in VALID state
   bool LookupValidRoute (Ipv4Address dst, RoutingTableEntry & rt);
   /// Update routing table

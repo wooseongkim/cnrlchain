@@ -167,6 +167,21 @@ RoutingTable::RoutingTable (Time t) :
 {
 }
 
+Ipv4Address
+RoutingTable::LookupNeigbhorInRoute(Ipv4Address id)
+{
+  RoutingTableEntry rt;
+  bool res = LookupRoute (id, rt);
+  if (res == false)
+  {
+    NS_LOG_LOGIC ("Route to " << id << " not found");
+    return 0;
+  }
+  
+  NS_LOG_LOGIC ("Route to " << id << " found");
+  return rt.GetNextHop();  
+}
+
 bool
 RoutingTable::LookupRoute (Ipv4Address id, RoutingTableEntry & rt)
 {

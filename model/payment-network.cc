@@ -169,6 +169,13 @@ PaymentNetwork::LookupRoute(Ipv4Address dst)
 }
 
 bool
+PaymentNetwork::LookupNextNode (Ipv4Address dst)
+{
+  return m_routingTable.LookupNeigbhorInRoute (dst);
+
+}
+
+bool
 PaymentNetwork::addNewRoute()
 {
   RoutingTableEntry toNeighbor;
