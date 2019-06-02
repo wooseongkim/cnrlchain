@@ -102,23 +102,23 @@ namespace ns3
                 NextHopWait (NodeTraversalTime + MilliSeconds (10)),
                 TimeoutBuffer (2),
                 BlackListTimeout (Time (RreqRetries * NetTraversalTime)),
-                MaxQueueLen (64),
-                MaxQueueTime (Seconds (30)),
+//                MaxQueueLen (64),
+//                MaxQueueTime (Seconds (30)),
                 DestinationOnly (false),
                 GratuitousReply (true),
                 EnableHello (true),
                 m_routingTable (DeletePeriod),
-                m_queue (MaxQueueLen, MaxQueueTime),
+//                m_queue (MaxQueueLen, MaxQueueTime),
                 m_requestId (0),
                 m_seqNo (0),
                 m_rreqIdCache (PathDiscoveryTime),
                 m_dpd (PathDiscoveryTime),
-                m_nb (HelloInterval),
+//                m_nb (HelloInterval),
                 m_rreqCount (0),
                 m_rerrCount (0),
-                m_htimer (Timer::CANCEL_ON_DESTROY),
-                m_rreqRateLimitTimer (Timer::CANCEL_ON_DESTROY),
-                m_rerrRateLimitTimer (Timer::CANCEL_ON_DESTROY)
+//                m_htimer (Timer::CANCEL_ON_DESTROY),
+//                m_rreqRateLimitTimer (Timer::CANCEL_ON_DESTROY),
+//                m_rerrRateLimitTimer (Timer::CANCEL_ON_DESTROY)
         {
             //listen broadcast packets
             TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");

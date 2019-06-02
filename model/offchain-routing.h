@@ -19,7 +19,7 @@ namespace ns3
     namespace offchain
     {
 
-        class PaymentPayment
+        class PaymentRoutingProtocol
         {
         public:
             static TypeId GetTypeId (void);
@@ -208,6 +208,7 @@ namespace ns3
              */
             void SendRerrWhenNoRouteToForward (Ipv4Address dst, uint32_t dstSeqNo, Ipv4Address origin);
             //\}
+
 
             /// Hello timer
             Timer m_htimer;

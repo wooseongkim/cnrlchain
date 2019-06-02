@@ -164,8 +164,14 @@ namespace ns3 {
     PaymentNetwork::LookupRoute(Ipv4Address dst)
     {
         RoutingTableEntry toNeighbor;
-        return m_routingTable.LookupRoute (dst, toNeighbor);
+        return m_routingTable->LookupRoute (dst, toNeighbor);
 
+    }
+
+    Ipv4Address
+    PaymentNetwork::LookupNextNode (Ipv4Address dst)
+    {
+        return m_routingTable->LookupNeigbhorInRoute (dst);
     }
 
     bool
@@ -238,7 +244,9 @@ namespace ns3 {
                 else if (resEv == 1)
                 {
                     NS_LOG_INFO("RREP IS FOR ME");
+
                     //wk: here we have to put a routine to start payment
+
                 }
                 break;
             }
@@ -305,6 +313,27 @@ namespace ns3 {
         // so that tags added to the packet can be sent as well
         m_txTrace (p);
         m_socket->Send (p);
+    }
+
+    void
+    PaymentNetwork::SendLockBP(RreqHeader const & LockBPHeader, RoutingTableEntry const & toDst)
+    {
+        NS_LOG_FUNCTION (this << toOrigin.GetDestination ());
+        /*
+         * Destination node MUST increment its own sequence number by one if the sequence number in the RREQ packet is equal to that
+         * incremented value. Otherwise, the destination does not change its sequence number before generating the  RREP message.
+         */
+        if (!rreqHeader.GetUnknownSeqno () && (rreqHeader.GetDstSeqno () == m_seqNo + 1))
+            m_seqNo++;
+        LockBPHeader lockBPHeader ( /*hops=*/ 0, /*dst=*/ rreqHeader.GetDst (),
+                /*dstSeqNo=*/ m_seqNo, /*origin=*/ toOrigin.GetDestination (), /*lifeTime=*/ MyRouteTimeout, reward);
+
+        Ptr<Packet> packet = Create<Packet> ();
+        packet->AddHeader (rrepHeader);
+        TypeHeader tHeader (OFFCHAIN_ROUTING_RREP);
+        packet->AddHeader (tHeader);
+        m_routingSocket->SendTo (packet, 0, InetSocketAddress (toOrigin.GetNextHop (), OFFCHAIN_ROUTING_PORT));
+
     }
 
 

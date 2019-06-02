@@ -121,6 +121,16 @@ namespace ns3 {
 
         void PaymentNetwork::SendChMaintain ();
 
+        /**
+        *       payment
+        */
+        void SendLockBP (RreqHeader const & LockBPHeader, RoutingTableEntry const & toDst);
+        /** Send RREP by intermediate node
+         * \param toDst routing table entry to destination
+         * \param toDst routing table entry to Destination
+         * \param gratRep indicates whether a gratuitous RREP should be unicast to destination
+         */
+
 
         uint32_t m_count;
         Time m_interval;
