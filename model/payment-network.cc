@@ -164,14 +164,14 @@ bool
 PaymentNetwork::LookupRoute(Ipv4Address dst)
 {
   RoutingTableEntry toNeighbor;
-  return m_routingTable.LookupRoute (dst, toNeighbor);
+  return m_routingTable->LookupRoute (dst, toNeighbor);
 
 }
 
-bool
+Ipv4Address
 PaymentNetwork::LookupNextNode (Ipv4Address dst)
 {
-  return m_routingTable.LookupNeigbhorInRoute (dst);
+  return m_routingTable->LookupNeigbhorInRoute (dst);
 
 }
 
