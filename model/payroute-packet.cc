@@ -71,7 +71,7 @@ TypeHeader::Print (std::ostream &os) const
 {
   switch (m_type)
     {
-    case OFFCHAIN_ROUTING_RREP:
+    case OFFCHAIN_ROUTING_RREQ:
       {
         os << "RREQ";
         break;
@@ -79,6 +79,11 @@ TypeHeader::Print (std::ostream &os) const
     case OFFCHAIN_TYPE_RREP:
       {
         os << "RREP";
+        break;
+      }
+    case OFFCHAIN_PAYMENT_TRANS :
+      {
+        os << "PAYMENTTRANS"
         break;
       }
     default:
@@ -485,6 +490,145 @@ operator<< (std::ostream & os, HelloHeader const & h)
   h.Print (os);
   return os;
 }
+//-----------------------------------------------------------------------------
+// PAYMENTTRAN
+//-----------------------------------------------------------------------------
+
+PaymentTrans::PaymentTrans (uint8_t flags, uint8_t reserved, uint8_t hopCount, uint32_t paymentID, Ipv4Address dst,
+        uint32_t dstSeqNo, Ipv4Address origin, uint32_t originSeqNo, uint32_t trAmount) :
+        m_flags (flags), m_reserved (reserved), m_hopCount (hopCount), m_paymentID (paymentID), m_dst (dst),
+        m_dstSeqNo (dstSeqNo), m_origin (origin),  m_originSeqNo (originSeqNo), m_transactionAmount(trAmount)
+        {
+        }
+
+        NS_OBJECT_ENSURE_REGISTERED (RreqHeader);
+
+        TypeId
+        PaymentTrans::GetTypeId ()
+        {
+            static TypeId tid = TypeId ("ns3::offchain::PaymentTrans")
+                    .SetParent<Header> ()
+                    .AddConstructor<PaymentTrans> ()
+            ;
+            return tid;
+        }
+
+        TypeId
+        PaymentTrans::GetInstanceTypeId () const
+        {
+            return GetTypeId ();
+        }
+
+        uint32_t
+        PaymentTrans::GetSerializedSize () const
+        {
+            return 27;
+        }
+
+        void
+        PaymentTrans::Serialize (Buffer::Iterator i) const
+        {
+            i.WriteU8 (m_flags);
+            i.WriteU8 (m_reserved);
+            i.WriteU8 (m_hopCount);
+            i.WriteHtonU32 (m_paymentID);
+            WriteTo (i, m_dst);
+            i.WriteHtonU32 (m_dstSeqNo);
+            WriteTo (i, m_origin);
+            i.WriteHtonU32 (m_originSeqNo);
+            i.WriteHtonU32 (m_transactionAmount);
+        }
+
+        uint32_t
+        PaymentTrans::Deserialize (Buffer::Iterator start)
+        {
+            Buffer::Iterator i = start;
+            m_flags = i.ReadU8 ();
+            m_reserved = i.ReadU8 ();
+            m_hopCount = i.ReadU8 ();
+            m_paymentID = i.ReadNtohU32 ();
+            ReadFrom (i, m_dst);
+            m_dstSeqNo = i.ReadNtohU32 ();
+            ReadFrom (i, m_origin);
+            m_originSeqNo = i.ReadNtohU32 ();
+            m_transactionAmount = i.ReadNtohU32 ();
+
+            uint32_t dist = i.GetDistanceFrom (start);
+            NS_ASSERT (dist == GetSerializedSize ());
+            return dist;
+        }
+
+        void
+        PaymentTrans::Print (std::ostream &os) const
+        {
+            os << "PaymentTrans ID " << m_paymentID << " destination: ipv4 " << m_dst
+               << " sequence number " << m_dstSeqNo << " source: ipv4 "
+               << m_origin << " sequence number " << m_originSeqNo << " transaction amount " << m_transactionAmount
+               << " flags:" << " Gratuitous RREP " << (*this).GetGratiousRrep ()
+               << " Destination only " << (*this).GetDestinationOnly ()
+               << " Unknown sequence number " << (*this).GetUnknownSeqno ();
+        }
+
+        std::ostream &
+        operator<< (std::ostream & os, PaymentTrans const & h)
+        {
+            h.Print (os);
+            return os;
+        }
+
+        void
+        PaymentTrans::SetGratiousRrep (bool f)
+        {
+            if (f)
+                m_flags |= (1 << 5);
+            else
+                m_flags &= ~(1 << 5);
+        }
+
+        bool
+        PaymentTrans::GetGratiousRrep () const
+        {
+            return (m_flags & (1 << 5));
+        }
+
+        void
+        PaymentTrans::SetDestinationOnly (bool f)
+        {
+            if (f)
+                m_flags |= (1 << 4);
+            else
+                m_flags &= ~(1 << 4);
+        }
+
+        bool
+        PaymentTrans::GetDestinationOnly () const
+        {
+            return (m_flags & (1 << 4));
+        }
+
+        void
+        PaymentTrans::SetUnknownSeqno (bool f)
+        {
+            if (f)
+                m_flags |= (1 << 3);
+            else
+                m_flags &= ~(1 << 3);
+        }
+
+        bool
+        PaymentTrans::GetUnknownSeqno () const
+        {
+            return (m_flags & (1 << 3));
+        }
+
+        bool
+        PaymentTrans::operator== (PaymentTrans const & o) const
+        {
+            return (m_flags == o.m_flags && m_reserved == o.m_reserved &&
+                    m_hopCount == o.m_hopCount && m_paymentID == o.m_paymentID &&
+                    m_dst == o.m_dst && m_dstSeqNo == o.m_dstSeqNo &&
+                    m_origin == o.m_origin && m_originSeqNo == o.m_originSeqNo && m_transactionAmount == o.m_transactionAmount);
+        }
 
 }
 }

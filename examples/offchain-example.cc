@@ -5,6 +5,7 @@
 
 using namespace ns3;
 
+class test;
 
 int 
 main (int argc, char *argv[])

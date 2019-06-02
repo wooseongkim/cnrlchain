@@ -25,16 +25,17 @@ public:
     PaymentNetworkHelper (uint16_t port, Ipv4Address requestedContent);
 
     /**
-     * Record an attribute to be set in each Application after it is is created.
+     * Record an attribute to be set in each Application after it is created.
      *
      * \param name the name of the attribute to set
      * \param value the value of the attribute to set
      */
+
     void SetAttribute (std::string name, const AttributeValue &value);
 
     /**
      * Given a pointer to a SocialNetwork application, set the data fill of the 
-     * packet (what is sent as data to the server) to the contents of the fill
+         * packet (what is sent as data to the server) to the contents of the fill
      * string (including the trailing zero terminator).
      *
      * \warning The size of resulting echo packets will be automatically adjusted

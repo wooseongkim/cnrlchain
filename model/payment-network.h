@@ -12,6 +12,7 @@
 #include "ns3/payroute-packet.h"
 #include "ns3/neighbors.h"
 
+
 using namespace std;
 
 namespace ns3 {
@@ -59,6 +60,7 @@ struct PendingInterestEntryKnownContentProvider
 class Socket;
 class Packet;
 
+
 /**
  * \ingroup udpecho
  * \brief A Udp Echo client
@@ -96,7 +98,16 @@ private:
     void HandleDigest(PktHeader *header);
     void HandleInterestUnknownContentProvider(PktHeader *header);
     void HandleInterestKnownContentProvider(PktHeader *header);
-    
+
+    // payment event
+    void sendBalanceProof(TransferUnsignedBalanceProof);
+    void SendLockedBalanceProof(LockedTransferUnsignedBalanceProof);
+    void SendSecretReveal();
+    void SendSecretRequest();
+    void SendSecret();
+
+    // event success, fail
+
     PktHeader *CreateDataPacketHeader(Ipv4Address requester,
                 Ipv4Address destination, uint32_t broadcastId, Ipv4Address requestedContent);
     PktHeader *CreateHelloPacketHeader();
@@ -153,6 +164,7 @@ private:
     Neighbors m_ngbChTable;
     
 };
+
 
 }
 

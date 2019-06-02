@@ -48,10 +48,10 @@ PaymentNetwork::PaymentNetwork ()
     m_pending_interest_unknown_content_provider = new vector<PendingInterestEntryUnknownContentProvider>;
     m_initialRequestedContent = Ipv4Address("0.0.0.0");
     m_firstSuccess = false;
-    m_ngbChTable = new Neighbors (1000, 100); //default deposit 100
+    m_ngbChTable = new Neighbors (1000, 100); //delay : 1000, default deposit 100
 }
 
-
+// 소멸자
 PaymentNetwork::~PaymentNetwork()
 {
     NS_LOG_FUNCTION (this);
@@ -75,6 +75,15 @@ PaymentNetwork::DoDispose (void)
 {
     NS_LOG_FUNCTION (this);
     Application::DoDispose ();
+
+    //    Application::DoDispose (void)
+//    {
+//        NS_LOG_FUNCTION (this);
+//        m_node = 0;
+//        m_startEvent.Cancel ();
+//        m_stopEvent.Cancel ();
+//        Object::DoDispose ();
+//    }
 }
 
 
@@ -198,7 +207,7 @@ PaymentNetwork::HandleOffchainMsg (Ptr<Socket> socket)
 
   switch (tHeader.Get ())
     {
-    case OFFCHAIN_ROUTING_RREP:
+    case OFFCHAIN_ROUTING_RREQ:
       {
         m_routingProtocol->RecvRReq (packet, receiver, sender);
         break;

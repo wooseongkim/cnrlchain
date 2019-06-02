@@ -26,6 +26,10 @@ public:
   static const uint32_t OFFCHAIN_ROUTING_PORT;
   static const uint32_t OFFCHAIN_HELLO_PORT;
 
+  // payment
+  static const uint32_t OFFCHAIN_PAYMENT_PORT;
+//  static const uint32_t OFFCHAIN_PAYMENT_DECKEY_PORT;
+
   /// c-tor
   RoutingProtocol ();
   // 소멸 생성자
@@ -82,6 +86,8 @@ private:
   uint16_t RerrRateLimit;           ///< Maximum number of REER per second.
   Time ActiveRouteTimeout;          ///< Period of time during which the route is considered to be valid.
   uint32_t NetDiameter;             ///< Net diameter measures the maximum possible number of hops between two nodes in the network
+  // payment
+  uint32_t paymentRateLimit         ///< Maximum number of LockedUnsignedBalanceProof per second.
   /**
    *  NodeTraversalTime is a conservative estimate of the average one hop traversal time for packets
    *  and should include queuing delays, interrupt processing times and transfer times.
