@@ -23,7 +23,8 @@ class PaymentPayment
 {
 public:
   static TypeId GetTypeId (void);
-  static const uint32_t OFFCHAIN_ROUTING_PORT;
+  static const uint32_t
+  ;
   static const uint32_t OFFCHAIN_HELLO_PORT;
 
   /// c-tor

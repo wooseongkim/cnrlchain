@@ -11,6 +11,8 @@
 #include "ns3/offchain-routing.h"
 #include "ns3/payroute-packet.h"
 #include "ns3/neighbors.h"
+#include "ns3/balanceProof.h"
+
 
 using namespace std;
 
@@ -54,6 +56,13 @@ struct PendingInterestEntryKnownContentProvider
     uint32_t broadcastId;
     Ipv4Address requestedContent;
     Ipv4Address contentProvider;
+};
+
+struct PendingPayment
+{
+    Ipv4Address initiator;
+    Ipv4Address target;
+
 };
 
 class Socket;
@@ -120,8 +129,23 @@ private:
     void DecideWhetherToSendContentNameDigest(PktHeader *header);
 
     void PaymentNetwork::SendChMaintain ();
-    
-    
+
+    /**
+    *       payment
+    */
+    void SendLockBP (RreqHeader const & LockBPHeader, RoutingTableEntry const & toDst);
+    /** Send RREP by intermediate node
+     * \param toDst routing table entry to destination
+     * \param toDst routing table entry to Destination
+     * \param gratRep indicates whether a gratuitous RREP should be unicast to destination
+     */
+
+    /**
+    *       payment parameter
+    */
+
+    uint32_t m_paymentID;
+
     uint32_t m_count;
     Time m_interval;
     uint32_t m_size;

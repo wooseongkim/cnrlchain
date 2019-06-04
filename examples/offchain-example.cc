@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
 #include "ns3/core-module.h"
-#include "ns3/offchain-helper.h"
+#include "ns3/payment-network-helper.h"
 
 using namespace ns3;
 

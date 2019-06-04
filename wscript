@@ -7,50 +7,34 @@
 #     conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
 
 def build(bld):
-    module = bld.create_ns3_module('social-network', ['internet','core'])
+    module = bld.create_ns3_module('offchain', ['internet','core'])
     module.source = [
-        'model/social-network.cc',
-        'model/relationship.cc',
-        'model/pkt-header.cc',
-        'model/content-manager.cc',
-        'model/interest-manager.cc',
-        'model/kmean_code/KCtree.cpp',
-        'model/kmean_code/KCutil.cpp',
-        'model/kmean_code/KM_ANN.cpp',
-        'model/kmean_code/KMcenters.cpp',
-        'model/kmean_code/KMdata.cpp',
-        'model/kmean_code/KMeans.cpp',
-        'model/kmean_code/KMfilterCenters.cpp',
-        'model/kmean_code/KMlocal.cpp',
-        'model/kmean_code/kmlsample.cpp',
-        'model/kmean_code/KMrand.cpp',
-        'model/kmean_code/KMterm.cpp',
+        'model/balanceProof.cc',
+        'model/neighbors.cc',
+        'model/offchain-dpd.cc',
+        'model/offchain-id.cc',
+        'model/offchain-routing.cc',
+        'model/payment-network.cc',
+        'model/payroute-packet.cc',
+        'model/routemsg-queue.cc',
         ]
 
-    module_test = bld.create_ns3_module_test_library('social-network')
+    module_test = bld.create_ns3_module_test_library('offchain')
     module_test.source = [
-        'test/social-network-test-suite.cc',
+        'test/offchain-test-suite.cc',
         ]
 
     headers = bld(features='ns3header')
-    headers.module = 'social-network'
+    headers.module = 'offchain'
     headers.source = [
-        'model/social-network.h',
-        'model/relationship.h',
-        'model/pkt-header.h',
-        'model/content-manager.h',
-        'model/interest-manager.h',
-        'model/kmean_code/KCtree.h',
-        'model/kmean_code/KCutil.h',
-        'model/kmean_code/KM_ANN.h',
-        'model/kmean_code/KMcenters.h',
-        'model/kmean_code/KMdata.h',
-        'model/kmean_code/KMeans.h',
-        'model/kmean_code/KMfilterCenters.h',
-        'model/kmean_code/KMlocal.h',
-        'model/kmean_code/KMrand.h',
-        'model/kmean_code/KMterm.h',
-        'model/kmean_code/kmlsample.h'
+        'model/balanceProof.h',
+        'model/neighbors.h',
+        'model/offchain-dpd.h',
+        'model/offchain-id.h',
+        'model/offchain-routing.h',
+        'model/payment-network.h',
+        'model/payroute-packet.h',
+        'model/routemsg-queue.h',
         ]
 
     if bld.env.ENABLE_EXAMPLES:
