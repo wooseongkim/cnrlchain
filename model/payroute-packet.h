@@ -28,8 +28,9 @@ namespace ns3 {
 			// PAYMENT
 					SEND_LOCKED_UNSIGNED_BP = 5,
 			SEND_SECRET_REQ= 6,
-			SEND_SECRET_REVEAL= 7,
-			SEND_BP = 8
+			SEND_SECRET_ACK = 7,
+			SEND_SECRET_REVEAL= 8,
+			SEND_BP = 9
 
 		};
 
@@ -270,15 +271,15 @@ namespace ns3 {
 			//\}
 
 			bool operator== (LockBPHeader const & o) const;
-
-		class LockBPHeader : public Header
-		{
 		private:
 			uint32_t       m_paymentID;      ///< payment ID
 			Ipv4Address    m_target;         ///< Destination IP Address
 			Ipv4Address    m_initiator;      ///< Originator IP Address
 			Ptr<offchain::HashTimeLock> m_hashTimeLock;
 			Ptr<offchain::UnSignedBalanceProof> m_unSignedBalanceProof;
+			//        HashTimeLock   m_hashTimeLock;
+//        UnSignedBalanceProof
+//                m_unSignedBalanceProof;    ///<  UnsignedBalanceProof
 		};
 
 		std::ostream & operator<< (std::ostream & os, LockBPHeader const &);
@@ -314,17 +315,58 @@ namespace ns3 {
 			HashTimeLock GetHashTimeLock() const {return m_hashTimeLock;}
 
 			bool operator== (SecretReqHeader const & o) const;
-
-		class SecretReqHeader : public Header
-		{
 		private:
 			uint32_t       m_paymentID;      ///< payment ID
 			Ipv4Address    m_target;         ///< Destination IP Address
 			Ipv4Address    m_initiator;      ///< Originator IP Address
+//        uint32_t       m_paymentAmout;
 			Ptr<offchain::HashTimeLock> m_hashTimeLock;
+
 		};
 
 		std::ostream & operator<< (std::ostream & os, SecretReqHeader const &);
+
+		class SecretAckHeader : public Header
+		{
+		public:
+			/// c-tor
+			SecretAckHeader (uint32_t paymentID = 0, Ipv4Address dst = Ipv4Address (),
+							 Ipv4Address origin = Ipv4Address (), std::BYTE secret = 0,
+							 std::BYTE secretHash = 0);
+			///\name Header serialization/deserialization
+			//\{
+			static TypeId GetTypeId ();
+			TypeId GetInstanceTypeId () const;
+			uint32_t GetSerializedSize () const;
+			void Serialize (Buffer::Iterator start) const;
+			uint32_t Deserialize (Buffer::Iterator start);
+			void Print (std::ostream &os) const;
+			//\}
+
+			///\name Fields
+			//\{
+			void SetId (uint32_t id) { m_paymentID = id; }
+			uint32_t GetId () const { return m_paymentID; }
+			void SetDst (Ipv4Address a) { m_dst = a; }
+			Ipv4Address GetDst () const { return m_dst; }
+			void SetOrigin (Ipv4Address a) { m_origin = a; }
+			Ipv4Address GetOrigin () const { return m_origin; }
+			void SetSecret(std::BYTE secret) {m_secret = secret;}
+			std::BYTE GetSecret() const {return m_secret;}
+			void SetSecretHash (std::BYTE secretHash) { m_secretHash= secretHash; }
+			std::BYTE GetSecretHash() const { return m_secretHash; }
+
+			bool operator== (SecretAckHeader const & o) const;
+		private:
+			uint32_t       m_paymentID;      ///< payment ID
+			Ipv4Address    m_dst;            ///< Destination IP Address
+			Ipv4Address    m_origin;         ///< Originator IP Address
+			std::BYTE      m_secret;
+			std::BYTE      m_secretHash;
+		};
+
+		std::ostream & operator<< (std::ostream & os, SecretAckHeader const &);
+
 
 		class SecretRevealHeader : public Header
 		{
@@ -357,9 +399,6 @@ namespace ns3 {
 			std::BYTE GetSecretHash() const { return m_secretHash; }
 
 			bool operator== (SecretRevealHeader const & o) const;
-
-		class SecretRevealHeader : public Header
-		{
 		private:
 			uint32_t       m_paymentID;      ///< payment ID
 			Ipv4Address    m_dst;            ///< Destination IP Address
@@ -369,6 +408,8 @@ namespace ns3 {
 		};
 
 		std::ostream & operator<< (std::ostream & os, SecretRevealHeader const &);
+
+
 
 		class BPHeader : public Header
 		{
@@ -404,8 +445,6 @@ namespace ns3 {
 
 			bool operator== (BPHeader const & o) const;
 
-		class BPHeader : public Header
-		{
 		private:
 			uint32_t       m_paymentID;      ///< payment ID
 			Ipv4Address    m_dst;            ///< Destination IP Address
@@ -417,14 +456,6 @@ namespace ns3 {
 
 		std::ostream & operator<< (std::ostream & os, BPHeader const &);
 
-		class SecretAckHeader : public Header
-		{
-		private:
-			uint32_t       m_paymentID;      ///< payment ID
-			Ipv4Address    m_dst;            ///< Destination IP Address
-			Ipv4Address    m_origin;         ///< Originator IP Address
-			std::BYTE      m_secret;
-			std::BYTE      m_secretHash;
-		};
+	}
 }
 #endif /* PAYMENTPACKET_H */
